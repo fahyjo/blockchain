@@ -1,0 +1,2 @@
+Random
+- need more research on block validation process
