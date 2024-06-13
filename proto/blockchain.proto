@@ -12,6 +12,20 @@ message Handshake {
   int32 height = 3;
 }
 
+message Block {
+  Header header = 1;
+  repeated Transaction transactions = 2;
+  bytes sig = 3;
+  bytes pubKey = 4;
+}
+
+message Header {
+  int32 height = 1;
+  bytes prevHash = 2;
+  bytes rootHash = 3;
+  int64 timeStamp = 4;
+}
+
 message Transaction {
   repeated TxInput inputs = 1;
   repeated TxOutput outputs = 2;
