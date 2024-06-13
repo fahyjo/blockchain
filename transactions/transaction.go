@@ -21,7 +21,7 @@ func NewTransaction(inputs []*Input, outputs []*Output) *Transaction {
 func EncodeTransaction(tx *Transaction) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(&tx)
+	err := enc.Encode(tx)
 	if err != nil {
 		return nil, err
 	}

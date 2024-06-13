@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+option go_package = "github.com/fahyjo/blockchain";
+
+service Node {
+  rpc HandleHandshake(Handshake) returns (Handshake);
+}
+
+message Handshake {
+  string listenAddr = 1;
+  repeated string peerListenAddrs = 2;
+  int32 height = 3;
+}
+
+message Transaction {
+  repeated TxInput inputs = 1;
+  repeated TxOutput outputs = 2;
+}
+
+message TxInput {
+  bytes txID = 1;
+  uint32 utxoIndex = 2;
+  UnlockingScript unlockingScript = 3;
+}
+
+message UnlockingScript {
+  bytes pubKey = 1;
+  bytes sig = 2;
+}
+
+message TxOutput {
+  int64 amount = 1;
+  LockingScript lockingScript = 2;
+}
+
+message LockingScript {
+  bytes pubKeyHash = 1;
+}
