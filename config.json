@@ -1,0 +1,14 @@
+{
+  "1": {
+    "crypto": {
+      "private key": "",
+      "public key": ""
+    },
+    "store": {
+      "utxo path": ""
+    },
+    "behavior": {
+
+    }
+  }
+}

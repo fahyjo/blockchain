@@ -3,46 +3,67 @@ package transactions
 import (
 	"encoding/hex"
 	"fmt"
+	"sync"
 )
 
 type Mempool struct {
-	txs map[string][]byte
+	lock  sync.RWMutex
+	cache map[string][]byte
 }
 
 func NewMempool() *Mempool {
 	return &Mempool{
-		txs: make(map[string][]byte),
+		lock:  sync.RWMutex{},
+		cache: make(map[string][]byte),
 	}
 }
 
 func (m *Mempool) Get(txID []byte) (*Transaction, error) {
-	b, ok := m.txs[hex.EncodeToString(txID)]
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	txIDStr := hex.EncodeToString(txID)
+	b, ok := m.cache[txIDStr]
 	if !ok {
-		return nil, fmt.Errorf("transaction not found: %s", txID)
+		return nil, fmt.Errorf("mempool cache miss: %s", txIDStr)
 	}
+
 	tx, err := DecodeTransaction(b)
 	if err != nil {
 		return nil, err
 	}
+
 	return tx, nil
 }
 
 func (m *Mempool) Put(tx *Transaction) error {
-	hash, err := tx.Hash()
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	txID, err := tx.Hash()
 	if err != nil {
 		return err
 	}
-	txID := hex.EncodeToString(hash)
 
+	txIDStr := hex.EncodeToString(txID)
 	b, err := EncodeTransaction(tx)
 	if err != nil {
 		return err
 	}
+	m.cache[txIDStr] = b
 
-	m.txs[txID] = b
 	return nil
 }
 
+func (m *Mempool) Has(txID []byte) bool {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	txIDStr := hex.EncodeToString(txID)
+	_, ok := m.cache[txIDStr]
+	return ok
+}
+
 func (m *Mempool) Size() int {
-	return len(m.txs)
+	return len(m.cache)
 }

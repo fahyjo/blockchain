@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"net"
-	"sync"
 
+	"github.com/fahyjo/blockchain/peer"
 	proto "github.com/fahyjo/blockchain/proto"
 	"github.com/fahyjo/blockchain/transactions"
 	"github.com/fahyjo/blockchain/utxos"
@@ -16,15 +16,10 @@ import (
 
 type Node struct {
 	ListenAddr string
+	Height     int64
 
-	PeerLock sync.RWMutex
-	Peers    map[string]*Peer
-
-	Height int64
-
-	TransactionCache map[string]bool
-	Mempool          *transactions.Mempool
-	UTXOStore        utxos.UTXOStore
+	*Cache
+	*Store
 
 	logger *zap.Logger
 
@@ -33,20 +28,16 @@ type Node struct {
 
 func NewNode(
 	listenAddr string,
-	peers map[string]*Peer,
 	height int64,
-	transactionCache map[string]bool,
-	mempool *transactions.Mempool,
-	utxoStore utxos.UTXOStore,
+	cache *Cache,
+	store *Store,
 	logger *zap.Logger) *Node {
 	return &Node{
-		ListenAddr:       listenAddr,
-		Peers:            peers,
-		Height:           height,
-		TransactionCache: transactionCache,
-		Mempool:          mempool,
-		UTXOStore:        utxoStore,
-		logger:           logger,
+		ListenAddr: listenAddr,
+		Height:     height,
+		Cache:      cache,
+		Store:      store,
+		logger:     logger,
 	}
 }
 
@@ -93,11 +84,11 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	ack := &proto.Ack{}
 
 	// check if already seen this transaction
-	_, ok := n.TransactionCache[txIDStr]
+	ok := n.TransactionCache.Has(txID)
 	if ok {
 		return ack, nil
 	}
-	n.TransactionCache[txIDStr] = true
+	n.TransactionCache.Put(txID, true)
 
 	n.logger.Info("Received transaction, validating ...", zap.String("txID", txIDStr))
 
@@ -127,9 +118,9 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	for _, input := range tx.Inputs {
 		utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
 		utxoIDStr := hex.EncodeToString(utxoID)
-		utxo, _ := n.UTXOStore.Get(utxoID)
+		utxo, _ := n.UtxoStore.Get(utxoID)
 		utxo.MempoolClaimed = true
-		err := n.UTXOStore.Put(utxoID, utxo)
+		err := n.UtxoStore.Put(utxoID, utxo)
 		if err != nil {
 			n.logger.Error("Error post transaction validation: error overwriting utxo in utxo set after marking mempool claimed",
 				zap.String("txID", txIDStr),
@@ -180,7 +171,7 @@ func (n *Node) validateTransactionInputs(tx *transactions.Transaction) bool {
 		}
 
 		// checks that the referenced utxo exists/is not spent
-		utxo, err := n.UTXOStore.Get(utxoID)
+		utxo, err := n.UtxoStore.Get(utxoID)
 		if err != nil {
 			n.logger.Error("Error validating transaction: transaction contains input referencing nonexistent utxo, transaction not added to mempool",
 				zap.String("txID", txIDStr),
@@ -221,7 +212,7 @@ func (n *Node) validateTransactionOutputs(tx *transactions.Transaction) bool {
 	var totalAmount int64
 	for _, input := range tx.Inputs {
 		utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
-		utxo, _ := n.UTXOStore.Get(utxoID)
+		utxo, _ := n.UtxoStore.Get(utxoID)
 		totalAmount += utxo.Amount
 	}
 
@@ -254,7 +245,7 @@ func (n *Node) broadcastTransaction(tx *transactions.Transaction) bool {
 	txIDStr := hex.EncodeToString(txID)
 
 	protoTx := transactions.ConvertTransaction(tx)
-	for peerAddr, peer := range n.Peers {
+	for peerAddr, peer := range n.PeerCache.Cache {
 		client := peer.Client
 		_, err := client.HandleTransaction(context.Background(), protoTx)
 		if err != nil {
@@ -274,22 +265,24 @@ func (n *Node) HandleHandshake(ctx context.Context, peerMsg *proto.Handshake) (*
 
 	msg := &proto.Handshake{
 		ListenAddr:      n.ListenAddr,
-		PeerListenAddrs: n.getPeerAddrs(),
+		PeerListenAddrs: n.PeerCache.GetPeerAddrs(),
 		Height:          n.Height,
 	}
 
-	_, ok := n.Peers[peerAddr]
+	ok := n.PeerCache.Has(peerAddr)
 	if !ok && peerAddr != n.ListenAddr {
 		client, err := n.dialPeer(peerAddr)
 		if err != nil {
 			n.logger.Error("Error dialing peer", zap.Error(err), zap.String("peer", peerAddr))
 			return msg, nil
 		}
-		peer := NewPeer(peerMsg.Height, client)
+		peer := peer.NewPeer(peerMsg.Height, client)
 
 		n.logger.Info("Adding peer", zap.String("peer", peerAddr))
 
-		n.addPeer(peerAddr, peer)
+		n.Cache.PeerCache.Put(peerAddr, peer)
+
+		n.logger.Info("Successfully added peer, starting peer discovery go routine", zap.String("peer", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
 
 		go func() {
 			err := n.peerDiscovery(peerMsg.PeerListenAddrs)
@@ -304,7 +297,7 @@ func (n *Node) HandleHandshake(ctx context.Context, peerMsg *proto.Handshake) (*
 
 func (n *Node) peerDiscovery(peerAddrs []string) error {
 	for _, peerAddr := range peerAddrs {
-		_, ok := n.Peers[peerAddr]
+		ok := n.PeerCache.Has(peerAddr)
 		if !ok && peerAddr != n.ListenAddr {
 			client, err := n.dialPeer(peerAddr)
 			if err != nil {
@@ -313,7 +306,7 @@ func (n *Node) peerDiscovery(peerAddrs []string) error {
 
 			msg := &proto.Handshake{
 				ListenAddr:      n.ListenAddr,
-				PeerListenAddrs: n.getPeerAddrs(),
+				PeerListenAddrs: n.PeerCache.GetPeerAddrs(),
 				Height:          n.Height,
 			}
 			peerMsg, err := client.HandleHandshake(context.Background(), msg)
@@ -321,8 +314,8 @@ func (n *Node) peerDiscovery(peerAddrs []string) error {
 				return err
 			}
 
-			peer := NewPeer(peerMsg.Height, client)
-			n.addPeer(peerAddr, peer)
+			peer := peer.NewPeer(peerMsg.Height, client)
+			n.Cache.PeerCache.Put(peerAddr, peer)
 
 			err = n.peerDiscovery(peerMsg.PeerListenAddrs)
 			if err != nil {
@@ -333,12 +326,6 @@ func (n *Node) peerDiscovery(peerAddrs []string) error {
 	return nil
 }
 
-func (n *Node) addPeer(peerAddr string, peer *Peer) {
-	n.PeerLock.Lock()
-	defer n.PeerLock.Unlock()
-	n.Peers[peerAddr] = peer
-}
-
 func (n *Node) dialPeer(peerAddr string) (proto.NodeClient, error) {
 	conn, err := grpc.NewClient(peerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -346,12 +333,4 @@ func (n *Node) dialPeer(peerAddr string) (proto.NodeClient, error) {
 	}
 	client := proto.NewNodeClient(conn)
 	return client, nil
-}
-
-func (n *Node) getPeerAddrs() []string {
-	var peerAddrs []string
-	for peerAddr := range n.Peers {
-		peerAddrs = append(peerAddrs, peerAddr)
-	}
-	return peerAddrs
 }

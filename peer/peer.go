@@ -1,4 +1,4 @@
-package node
+package peer
 
 import (
 	pb "github.com/fahyjo/blockchain/proto"

@@ -17,8 +17,9 @@ type LevelsTransactionStore struct {
 	db *leveldb.DB
 }
 
-func NewLevelsTransactionStore() (TransactionStore, error) {
-	db, err := leveldb.OpenFile(transactionStorePath, nil)
+func NewLevelsTransactionStore(listenAddr string) (TransactionStore, error) {
+	path := transactionStorePath + "/" + listenAddr
+	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err
 	}
