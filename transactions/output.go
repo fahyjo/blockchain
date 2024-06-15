@@ -1,15 +1,22 @@
 package transactions
 
+import proto "github.com/fahyjo/blockchain/proto"
+
 type Output struct {
-	Amount        int
+	Amount        int64
 	LockingScript *LockingScript
 }
 
-func NewOutput(amount int, script *LockingScript) *Output {
+func NewOutput(amount int64, script *LockingScript) *Output {
 	return &Output{
 		Amount:        amount,
 		LockingScript: script,
 	}
+}
+
+func convertProtoOutput(protoOutput *proto.TxOutput) *Output {
+	lockingScript := convertProtoLockingScript(protoOutput.LockingScript)
+	return NewOutput(protoOutput.Amount, lockingScript)
 }
 
 type LockingScript struct {
@@ -20,4 +27,8 @@ func NewLockingScript(pubKeyHash []byte) *LockingScript {
 	return &LockingScript{
 		PubKeyHash: pubKeyHash,
 	}
+}
+
+func convertProtoLockingScript(protoLockingScript *proto.LockingScript) *LockingScript {
+	return NewLockingScript(protoLockingScript.PubKeyHash)
 }

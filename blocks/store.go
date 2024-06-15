@@ -15,7 +15,7 @@ type LevelsBlockStore struct {
 	db *leveldb.DB
 }
 
-func NewLevelsBlockStore(db *leveldb.DB) (*LevelsBlockStore, error) {
+func NewLevelsBlockStore(db *leveldb.DB) (BlockStore, error) {
 	db, err := leveldb.OpenFile(blockStorePath, nil)
 	if err != nil {
 		return nil, err

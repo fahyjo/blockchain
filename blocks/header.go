@@ -6,17 +6,17 @@ import (
 )
 
 type Header struct {
-	Height    int32
+	Height    int64
 	PrevHash  []byte
 	RootHash  []byte
 	TimeStamp int64
 }
 
-func NewHeader(height int32, prevhash []byte, roothash []byte, timeStamp int64) *Header {
+func NewHeader(height int64, prevHash []byte, rootHash []byte, timeStamp int64) *Header {
 	return &Header{
 		Height:    height,
-		PrevHash:  prevhash,
-		RootHash:  roothash,
+		PrevHash:  prevHash,
+		RootHash:  rootHash,
 		TimeStamp: timeStamp,
 	}
 }

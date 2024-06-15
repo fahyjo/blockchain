@@ -17,7 +17,7 @@ type LevelsTransactionStore struct {
 	db *leveldb.DB
 }
 
-func NewLevelsTransactionStore() (*LevelsTransactionStore, error) {
+func NewLevelsTransactionStore() (TransactionStore, error) {
 	db, err := leveldb.OpenFile(transactionStorePath, nil)
 	if err != nil {
 		return nil, err
@@ -29,6 +29,9 @@ func NewLevelsTransactionStore() (*LevelsTransactionStore, error) {
 
 func (s *LevelsTransactionStore) Get(txID []byte) (*Transaction, error) {
 	b, err := s.db.Get(txID, nil)
+	if err != nil {
+		return nil, err
+	}
 	tx, err := DecodeTransaction(b)
 	if err != nil {
 		return nil, err

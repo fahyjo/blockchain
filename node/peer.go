@@ -5,11 +5,11 @@ import (
 )
 
 type Peer struct {
-	Height int32
+	Height int64
 	Client pb.NodeClient
 }
 
-func NewPeer(height int32, client pb.NodeClient) *Peer {
+func NewPeer(height int64, client pb.NodeClient) *Peer {
 	return &Peer{
 		Height: height,
 		Client: client,

@@ -4,12 +4,16 @@ option go_package = "github.com/fahyjo/blockchain";
 
 service Node {
   rpc HandleHandshake(Handshake) returns (Handshake);
+  rpc HandleTransaction(Transaction) returns (Ack);
 }
 
 message Handshake {
   string listenAddr = 1;
   repeated string peerListenAddrs = 2;
-  int32 height = 3;
+  int64 height = 3;
+}
+
+message Ack {
 }
 
 message Block {
@@ -20,7 +24,7 @@ message Block {
 }
 
 message Header {
-  int32 height = 1;
+  int64 height = 1;
   bytes prevHash = 2;
   bytes rootHash = 3;
   int64 timeStamp = 4;
@@ -33,7 +37,7 @@ message Transaction {
 
 message TxInput {
   bytes txID = 1;
-  uint32 utxoIndex = 2;
+  int64 utxoIndex = 2;
   UnlockingScript unlockingScript = 3;
 }
 

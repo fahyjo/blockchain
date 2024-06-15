@@ -1,10 +1,11 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	n "github.com/fahyjo/blockchain/node"
+	"github.com/fahyjo/blockchain/transactions"
+	"github.com/fahyjo/blockchain/utxos"
 	"go.uber.org/zap"
 )
 
@@ -24,6 +25,16 @@ func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
-	node := n.NewNode(listenAddr, make(map[string]*n.Peer), 0, logger)
-	log.Fatal(node.Start(peerAddrs))
+	mempool := transactions.NewMempool()
+
+	utxoStore, err := utxos.NewLevelsUTXOStore(listenAddr)
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	node := n.NewNode(listenAddr, make(map[string]*n.Peer), 0, make(map[string]bool), mempool, utxoStore, logger)
+	err = node.Start(peerAddrs)
+	if err != nil {
+		logger.Error(err.Error())
+	}
 }

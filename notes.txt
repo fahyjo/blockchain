@@ -1,2 +1,25 @@
 Random
 - need more research on block validation process
+
+Transaction validation
+- inputs can be processed in parallel ????
+
+
+TODO
+- look over handshake ->
+- implement transactions.ConvertTransaction()
+- might want to add actual error messages to n.logger.Error()
+- logging levels
+    - top level log info
+        - top level just moves from step to step, no actual behavior
+    - level down log errors - behavioral units
+        - level down is actual behavior units, catch all errors and craft error message to log
+    - everyone else just throws errors up - functional units
+    - node.HandleTransaction, move to mempool.put, create function
+- add locks to mempool and transaction cache
+- use wait group to see when go startPeerDiscovery ends
+
+NEXT STEPS
+- set up config
+- blocks
+- json server for posting transactions, triggering blocks

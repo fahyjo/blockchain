@@ -42,3 +42,7 @@ func (m *Mempool) Put(tx *Transaction) error {
 	m.txs[txID] = b
 	return nil
 }
+
+func (m *Mempool) Size() int {
+	return len(m.txs)
+}
