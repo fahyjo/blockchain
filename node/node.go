@@ -42,32 +42,41 @@ func NewNode(
 }
 
 func (n *Node) Start(peerAddrs []string) error {
-	errChan := make(chan error, 3)
+	errChan := make(chan error, 2)
 
 	n.logger.Info("Starting peer discovery go routine", zap.Strings("peers", peerAddrs))
+
 	go func(peerAddrs []string, errCh chan error) {
 		err := n.peerDiscovery(peerAddrs)
 		if err != nil {
-			n.logger.Error("Error in peer discovery, exiting", zap.String("error", err.Error()))
+			n.logger.Error("Error in start peer discovery, exiting", zap.Error(err))
 			errCh <- err
+			return
 		}
 	}(peerAddrs, errChan)
 
-	n.logger.Info("Starting gRPC server go routine", zap.String("listenAddr", n.ListenAddr))
+	n.logger.Info("Starting gRPC go routine", zap.String("listenAddr", n.ListenAddr))
+
 	go func(errCh chan error) {
 		grpcServer := grpc.NewServer()
 		proto.RegisterNodeServer(grpcServer, n)
 
 		lis, err := net.Listen("tcp", n.ListenAddr)
 		if err != nil {
+			n.logger.Error("Error creating tcp listener", zap.Error(err))
 			errCh <- err
+			return
 		}
 
 		err = grpcServer.Serve(lis)
 		if err != nil {
+			n.logger.Error("Error starting grpc server", zap.Error(err))
 			errCh <- err
+			return
 		}
 	}(errChan)
+
+	n.logger.Info("Completed start sequence")
 
 	for {
 		err := <-errChan
@@ -84,15 +93,15 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	ack := &proto.Ack{}
 
 	// check if already seen this transaction
-	ok := n.TransactionCache.Has(txID)
-	if ok {
+	seen := n.TransactionCache.Has(txID)
+	if seen {
 		return ack, nil
 	}
 	n.TransactionCache.Put(txID, true)
 
-	n.logger.Info("Received transaction, validating ...", zap.String("txID", txIDStr))
+	n.logger.Info("Received new transaction, validating ...", zap.String("txID", txIDStr))
 
-	ok = n.validateTransactionInputs(tx)
+	ok := n.validateTransactionInputs(tx)
 	if !ok {
 		return ack, nil
 	}
@@ -128,7 +137,7 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 		}
 	}
 
-	n.logger.Info("Broadcasting transaction", zap.String("txID", txIDStr))
+	n.logger.Info("Successfully marked ref utxos, broadcasting transaction", zap.String("txID", txIDStr))
 
 	ok = n.broadcastTransaction(tx)
 	if !ok {
@@ -141,6 +150,7 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 func (n *Node) validateTransactionInputs(tx *transactions.Transaction) bool {
 	txID, err := tx.Hash()
 	if err != nil {
+		n.logger.Error("Error validating transaction, unable to calculate txID", zap.Error(err))
 		return false
 	}
 	txIDStr := hex.EncodeToString(txID)
@@ -205,6 +215,7 @@ func (n *Node) validateTransactionInputs(tx *transactions.Transaction) bool {
 func (n *Node) validateTransactionOutputs(tx *transactions.Transaction) bool {
 	txID, err := tx.Hash()
 	if err != nil {
+		n.logger.Error("Error validating transaction, unable to calculate txID", zap.Error(err))
 		return false
 	}
 	txIDStr := hex.EncodeToString(txID)
@@ -239,20 +250,21 @@ func (n *Node) validateTransactionOutputs(tx *transactions.Transaction) bool {
 func (n *Node) broadcastTransaction(tx *transactions.Transaction) bool {
 	txID, err := tx.Hash()
 	if err != nil {
-		n.logger.Error("Error broadcasting transaction, unable to calculate txID")
+		n.logger.Error("Error broadcasting transaction, unable to calculate txID", zap.Error(err))
 		return false
 	}
 	txIDStr := hex.EncodeToString(txID)
 
 	protoTx := transactions.ConvertTransaction(tx)
-	for peerAddr, peer := range n.PeerCache.Cache {
-		client := peer.Client
+	for peerAddr, p := range n.PeerCache.Cache {
+		client := p.Client
 		_, err := client.HandleTransaction(context.Background(), protoTx)
 		if err != nil {
 			n.logger.Error("Error broadcasting transaction",
 				zap.Error(err),
 				zap.String("txID", txIDStr),
 				zap.String("peer", peerAddr))
+			return false
 		}
 	}
 	return true
@@ -260,67 +272,90 @@ func (n *Node) broadcastTransaction(tx *transactions.Transaction) bool {
 
 func (n *Node) HandleHandshake(ctx context.Context, peerMsg *proto.Handshake) (*proto.Handshake, error) {
 	peerAddr := peerMsg.ListenAddr
-
-	n.logger.Info("Received handshake", zap.String("peer", peerAddr))
-
 	msg := &proto.Handshake{
 		ListenAddr:      n.ListenAddr,
 		PeerListenAddrs: n.PeerCache.GetPeerAddrs(),
 		Height:          n.Height,
 	}
 
-	ok := n.PeerCache.Has(peerAddr)
-	if !ok && peerAddr != n.ListenAddr {
-		client, err := n.dialPeer(peerAddr)
-		if err != nil {
-			n.logger.Error("Error dialing peer", zap.Error(err), zap.String("peer", peerAddr))
-			return msg, nil
-		}
-		peer := peer.NewPeer(peerMsg.Height, client)
-
-		n.logger.Info("Adding peer", zap.String("peer", peerAddr))
-
-		n.Cache.PeerCache.Put(peerAddr, peer)
-
-		n.logger.Info("Successfully added peer, starting peer discovery go routine", zap.String("peer", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
-
-		go func() {
-			err := n.peerDiscovery(peerMsg.PeerListenAddrs)
-			if err != nil {
-				n.logger.Error("Error in peer discover", zap.Error(err), zap.String("peer", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
-			}
-		}()
+	// checks that we do not already know this peer
+	seen := n.PeerCache.Has(peerAddr)
+	if seen {
+		return msg, nil
 	}
 
+	// checks own handshake message has not been forwarded back to us
+	if peerAddr == n.ListenAddr {
+		return msg, nil
+	}
+
+	n.logger.Info("Received new handshake, dialing peer", zap.String("peer", peerAddr))
+
+	// dial peer
+	client, err := n.dialPeer(peerAddr)
+	if err != nil {
+		n.logger.Error("Error dialing peer", zap.Error(err), zap.String("peer", peerAddr))
+		return msg, nil
+	}
+
+	n.logger.Info("Successfully dialed peer, adding peer", zap.String("peer", peerAddr))
+
+	// add peer
+	p := peer.NewPeer(peerMsg.Height, client)
+	n.Cache.PeerCache.Put(peerAddr, p)
+
+	n.logger.Info("Successfully added peer, starting peer discovery go routine", zap.String("peer", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
+
+	// start peer discovery go routine
+	go func() {
+		err := n.peerDiscovery(peerMsg.PeerListenAddrs)
+		if err != nil {
+			n.logger.Error("Error in peer discover", zap.Error(err), zap.String("peer", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
+		}
+	}()
+
+	// update list of peers
+	msg.PeerListenAddrs = n.PeerCache.GetPeerAddrs()
 	return msg, nil
 }
 
 func (n *Node) peerDiscovery(peerAddrs []string) error {
 	for _, peerAddr := range peerAddrs {
-		ok := n.PeerCache.Has(peerAddr)
-		if !ok && peerAddr != n.ListenAddr {
-			client, err := n.dialPeer(peerAddr)
-			if err != nil {
-				return err
-			}
+		seen := n.PeerCache.Has(peerAddr)
+		// checks we do not already know this peer
+		if seen {
+			continue
+		}
+		// checks peer addr is not our addr
+		if peerAddr == n.ListenAddr {
+			continue
+		}
 
-			msg := &proto.Handshake{
-				ListenAddr:      n.ListenAddr,
-				PeerListenAddrs: n.PeerCache.GetPeerAddrs(),
-				Height:          n.Height,
-			}
-			peerMsg, err := client.HandleHandshake(context.Background(), msg)
-			if err != nil {
-				return err
-			}
+		// dial peer
+		client, err := n.dialPeer(peerAddr)
+		if err != nil {
+			return err
+		}
 
-			peer := peer.NewPeer(peerMsg.Height, client)
-			n.Cache.PeerCache.Put(peerAddr, peer)
+		msg := &proto.Handshake{
+			ListenAddr:      n.ListenAddr,
+			PeerListenAddrs: n.PeerCache.GetPeerAddrs(),
+			Height:          n.Height,
+		}
 
-			err = n.peerDiscovery(peerMsg.PeerListenAddrs)
-			if err != nil {
-				return err
-			}
+		// invoke peer handshake method
+		peerMsg, err := client.HandleHandshake(context.Background(), msg)
+		if err != nil {
+			continue
+		}
+
+		// add new peer
+		p := peer.NewPeer(peerMsg.Height, client)
+		n.Cache.PeerCache.Put(peerAddr, p)
+
+		err = n.peerDiscovery(peerMsg.PeerListenAddrs)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

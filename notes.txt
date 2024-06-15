@@ -17,10 +17,7 @@ TODO
     - everyone else just throws errors up - functional units
     - node.HandleTransaction, move to mempool.put, create function
 - i think pass errors all the way through (back from the grpc methods, decide if care about when call)
-- add locks to mempool and transaction cache
 - use wait group to see when go startPeerDiscovery ends
-- package all stores into Store struct
-- package maps into type with the lock
 
 NEXT STEPS
 - set up config
