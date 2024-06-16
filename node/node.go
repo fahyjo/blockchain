@@ -101,11 +101,13 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 
 	n.logger.Info("Received new transaction, validating ...", zap.String("txID", txIDStr))
 
+	// validate transaction inputs
 	ok := n.validateTransactionInputs(tx)
 	if !ok {
 		return ack, nil
 	}
 
+	// validate transaction outputs
 	ok = n.validateTransactionOutputs(tx)
 	if !ok {
 		return ack, nil
@@ -139,6 +141,7 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 
 	n.logger.Info("Successfully marked ref utxos, broadcasting transaction", zap.String("txID", txIDStr))
 
+	// broadcast transactions to peers
 	ok = n.broadcastTransaction(tx)
 	if !ok {
 		return ack, nil
@@ -184,6 +187,7 @@ func (n *Node) validateTransactionInputs(tx *transactions.Transaction) bool {
 		utxo, err := n.UtxoStore.Get(utxoID)
 		if err != nil {
 			n.logger.Error("Error validating transaction: transaction contains input referencing nonexistent utxo, transaction not added to mempool",
+				zap.Error(err),
 				zap.String("txID", txIDStr),
 				zap.String("utxoID", utxoIDStr))
 			return false
@@ -350,6 +354,7 @@ func (n *Node) peerDiscovery(peerAddrs []string) error {
 		}
 
 		// add new peer
+		n.logger.Info("Adding peer", zap.String("peer", peerAddr))
 		p := peer.NewPeer(peerMsg.Height, client)
 		n.Cache.PeerCache.Put(peerAddr, p)
 

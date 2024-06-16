@@ -1,14 +1,28 @@
 {
   "1": {
+    "network": {
+      "listenAddr": ":3000",
+      "peers": []
+    },
     "crypto": {
-      "private key": "",
-      "public key": ""
+      "privKey": "",
+      "pubKey": ""
     },
     "store": {
       "utxo path": ""
+    }
+  },
+  "2": {
+    "network": {
+      "listenAddr": ":4000",
+      "peers": [":3000"]
     },
-    "behavior": {
-
+    "crypto": {
+      "privKey": "",
+      "pubKey": ""
+    },
+    "store": {
+      "utxo path": ""
     }
   }
 }
