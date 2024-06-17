@@ -2,10 +2,6 @@ package blocks
 
 import "github.com/syndtr/goleveldb/leveldb"
 
-const (
-	blockStorePath = "blocks/db/blocks.db"
-)
-
 type BlockStore interface {
 	Get([]byte) (*Block, error)
 	Put(*Block) error
@@ -15,8 +11,7 @@ type LevelsBlockStore struct {
 	db *leveldb.DB
 }
 
-func NewLevelsBlockStore(listenAddr string) (BlockStore, error) {
-	path := blockStorePath + "/" + listenAddr
+func NewLevelsBlockStore(path string) (BlockStore, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err

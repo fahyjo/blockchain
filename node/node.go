@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net"
 
+	"github.com/fahyjo/blockchain/crypto"
 	"github.com/fahyjo/blockchain/peer"
 	proto "github.com/fahyjo/blockchain/proto"
 	"github.com/fahyjo/blockchain/transactions"
@@ -18,6 +19,8 @@ type Node struct {
 	ListenAddr string
 	Height     int64
 
+	*crypto.Keys
+
 	*Cache
 	*Store
 
@@ -29,12 +32,14 @@ type Node struct {
 func NewNode(
 	listenAddr string,
 	height int64,
+	keys *crypto.Keys,
 	cache *Cache,
 	store *Store,
 	logger *zap.Logger) *Node {
 	return &Node{
 		ListenAddr: listenAddr,
 		Height:     height,
+		Keys:       keys,
 		Cache:      cache,
 		Store:      store,
 		logger:     logger,

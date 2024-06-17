@@ -26,6 +26,15 @@ func convertProtoInput(protoInput *proto.TxInput) *Input {
 	return NewInput(protoInput.TxID, protoInput.UtxoIndex, unlockingScript)
 }
 
+func convertInput(input *Input) *proto.TxInput {
+	protoUnlockingScript := convertUnlockingScript(input.UnlockingScript)
+	return &proto.TxInput{
+		TxID:            input.TxID,
+		UtxoIndex:       input.UTXOIndex,
+		UnlockingScript: protoUnlockingScript,
+	}
+}
+
 type UnlockingScript struct {
 	PubKey *crypto.PublicKey
 	Sig    *crypto.Signature
@@ -47,4 +56,11 @@ func convertProtoUnlockingScript(protoUnlockingScript *proto.UnlockingScript) *U
 	pubKey := crypto.NewPublicKey(protoUnlockingScript.PubKey)
 	sig := crypto.NewSignature(protoUnlockingScript.Sig)
 	return NewUnlockingScript(pubKey, sig)
+}
+
+func convertUnlockingScript(unlockingScript *UnlockingScript) *proto.UnlockingScript {
+	return &proto.UnlockingScript{
+		PubKey: unlockingScript.PubKey.Bytes(),
+		Sig:    unlockingScript.Sig.Bytes(),
+	}
 }

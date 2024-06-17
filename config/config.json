@@ -1,0 +1,35 @@
+{
+  "1": {
+    "network": {
+      "listenAddr": ":3000",
+      "peers": []
+    },
+    "store": {
+      "block": "db/1/block",
+      "transaction": "db/1/transaction",
+      "utxo": "db/1/utxo"
+    }
+  },
+  "2": {
+    "network": {
+      "listenAddr": ":4000",
+      "peers": [":3000"]
+    },
+    "store": {
+      "block": "db/2/block",
+      "transaction": "db/2/transaction",
+      "utxo": "db/2/utxo"
+    }
+  },
+  "3": {
+    "network": {
+      "listenAddr": ":5000",
+      "peers": [":4000"]
+    },
+    "store": {
+      "block": "db/3/block",
+      "transaction": "db/3/transaction",
+      "utxo": "db/3/utxo"
+    }
+  }
+}

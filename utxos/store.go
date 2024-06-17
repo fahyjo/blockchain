@@ -2,10 +2,6 @@ package utxos
 
 import "github.com/syndtr/goleveldb/leveldb"
 
-const (
-	utxoStorePath = "utxos/db/utxos"
-)
-
 type UTXOStore interface {
 	Get([]byte) (*UTXO, error)
 	Put([]byte, *UTXO) error
@@ -15,8 +11,7 @@ type LevelsUTXOStore struct {
 	db *leveldb.DB
 }
 
-func NewLevelsUTXOStore(listenAddr string) (UTXOStore, error) {
-	path := utxoStorePath + "/" + listenAddr
+func NewLevelsUTXOStore(path string) (UTXOStore, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err

@@ -19,6 +19,14 @@ func convertProtoOutput(protoOutput *proto.TxOutput) *Output {
 	return NewOutput(protoOutput.Amount, lockingScript)
 }
 
+func convertOutput(output *Output) *proto.TxOutput {
+	protoLockingScript := convertLockingScript(output.LockingScript)
+	return &proto.TxOutput{
+		Amount:        output.Amount,
+		LockingScript: protoLockingScript,
+	}
+}
+
 type LockingScript struct {
 	PubKeyHash []byte
 }
@@ -31,4 +39,10 @@ func NewLockingScript(pubKeyHash []byte) *LockingScript {
 
 func convertProtoLockingScript(protoLockingScript *proto.LockingScript) *LockingScript {
 	return NewLockingScript(protoLockingScript.PubKeyHash)
+}
+
+func convertLockingScript(lockingScript *LockingScript) *proto.LockingScript {
+	return &proto.LockingScript{
+		PubKeyHash: lockingScript.PubKeyHash,
+	}
 }

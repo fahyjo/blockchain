@@ -19,3 +19,7 @@ func (p *PublicKey) Hash() []byte {
 	hash := sha256.Sum256(p.key)
 	return hash[:]
 }
+
+func (p *PublicKey) Bytes() []byte {
+	return p.key
+}

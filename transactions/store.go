@@ -4,10 +4,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
-const (
-	transactionStorePath = "transactions/db/transactions.db"
-)
-
 type TransactionStore interface {
 	Get([]byte) (*Transaction, error)
 	Put(*Transaction) error
@@ -17,8 +13,7 @@ type LevelsTransactionStore struct {
 	db *leveldb.DB
 }
 
-func NewLevelsTransactionStore(listenAddr string) (TransactionStore, error) {
-	path := transactionStorePath + "/" + listenAddr
+func NewLevelsTransactionStore(path string) (TransactionStore, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err

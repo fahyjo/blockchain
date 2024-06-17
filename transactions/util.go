@@ -41,6 +41,19 @@ func ConvertProtoTransaction(protoTx *proto.Transaction) *Transaction {
 	return NewTransaction(inputs, outputs)
 }
 
-func ConvertTransaction(transaction *Transaction) *proto.Transaction {
-	return &proto.Transaction{}
+func ConvertTransaction(tx *Transaction) *proto.Transaction {
+	var protoInputs []*proto.TxInput
+	for _, input := range tx.Inputs {
+		protoInputs = append(protoInputs, convertInput(input))
+	}
+
+	var protoOutputs []*proto.TxOutput
+	for _, output := range tx.Outputs {
+		protoOutputs = append(protoOutputs, convertOutput(output))
+	}
+
+	return &proto.Transaction{
+		Inputs:  protoInputs,
+		Outputs: protoOutputs,
+	}
 }
