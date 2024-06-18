@@ -1,10 +1,40 @@
 package utxos
 
-import "github.com/syndtr/goleveldb/leveldb"
+import (
+	"encoding/hex"
+	"fmt"
+
+	"github.com/syndtr/goleveldb/leveldb"
+)
 
 type UTXOStore interface {
 	Get([]byte) (*UTXO, error)
 	Put([]byte, *UTXO) error
+}
+
+type MemoryUTXOStore struct {
+	db map[string]*UTXO
+}
+
+func NewMemoryUTXOStore() UTXOStore {
+	return &MemoryUTXOStore{
+		db: make(map[string]*UTXO),
+	}
+}
+
+func (s *MemoryUTXOStore) Get(utxoID []byte) (*UTXO, error) {
+	utxoIDStr := hex.EncodeToString(utxoID)
+	utxo, ok := s.db[utxoIDStr]
+	if !ok {
+		return nil, fmt.Errorf("utxo not found: %s", utxoIDStr)
+	}
+	return utxo, nil
+}
+
+func (s *MemoryUTXOStore) Put(utxoID []byte, utxo *UTXO) error {
+	utxoIDStr := hex.EncodeToString(utxoID)
+	s.db[utxoIDStr] = utxo
+	return nil
 }
 
 type LevelsUTXOStore struct {

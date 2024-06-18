@@ -1,12 +1,44 @@
 package transactions
 
 import (
+	"encoding/hex"
+	"fmt"
+
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type TransactionStore interface {
 	Get([]byte) (*Transaction, error)
 	Put(*Transaction) error
+}
+
+type MemoryTransactionStore struct {
+	db map[string]*Transaction
+}
+
+func NewMemoryTransactionStore() TransactionStore {
+	return &MemoryTransactionStore{
+		db: make(map[string]*Transaction),
+	}
+}
+
+func (s *MemoryTransactionStore) Get(txID []byte) (*Transaction, error) {
+	txIDStr := hex.EncodeToString(txID)
+	tx, ok := s.db[txIDStr]
+	if !ok {
+		return nil, fmt.Errorf("transaction not found: %s", txIDStr)
+	}
+	return tx, nil
+}
+
+func (s *MemoryTransactionStore) Put(tx *Transaction) error {
+	txID, err := tx.Hash()
+	if err != nil {
+		return err
+	}
+	txIDStr := hex.EncodeToString(txID)
+	s.db[txIDStr] = tx
+	return nil
 }
 
 type LevelsTransactionStore struct {
@@ -36,7 +68,7 @@ func (s *LevelsTransactionStore) Get(txID []byte) (*Transaction, error) {
 }
 
 func (s *LevelsTransactionStore) Put(tx *Transaction) error {
-	hash, err := tx.Hash()
+	txID, err := tx.Hash()
 	if err != nil {
 		return err
 	}
@@ -46,7 +78,7 @@ func (s *LevelsTransactionStore) Put(tx *Transaction) error {
 		return err
 	}
 
-	err = s.db.Put(hash, b, nil)
+	err = s.db.Put(txID, b, nil)
 	if err != nil {
 		return err
 	}

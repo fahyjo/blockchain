@@ -55,6 +55,21 @@ func main() {
 		cache             = n.NewCache(peerCache, transactionsCache, mempool)
 	)
 
+	var (
+		blockStore       = blocks.NewMemoryBlockStore()
+		transactionStore = transactions.NewMemoryTransactionStore()
+		utxoStore        = utxos.NewMemoryUTXOStore()
+		store            = n.NewStore(blockStore, transactionStore, utxoStore)
+	)
+
+	node := n.NewNode(listenAddr, 0, keys, cache, store, logger)
+	err = node.Start(peerAddrs)
+	if err != nil {
+		logger.Fatal("Failed to start node", zap.Error(err))
+	}
+}
+
+/*
 	blockPath := config[nodeID].Block
 	blockStore, err := blocks.NewLevelsBlockStore(blockPath)
 	if err != nil {
@@ -70,11 +85,4 @@ func main() {
 	if err != nil {
 		logger.Fatal("Failed to initialize utxo store", zap.Error(err))
 	}
-	store := n.NewStore(blockStore, transactionStore, utxoStore)
-
-	node := n.NewNode(listenAddr, 0, keys, cache, store, logger)
-	err = node.Start(peerAddrs)
-	if err != nil {
-		logger.Fatal("Failed to start node", zap.Error(err))
-	}
-}
+*/
