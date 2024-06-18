@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"strconv"
 
 	"github.com/fahyjo/blockchain/blocks"
 	c "github.com/fahyjo/blockchain/config"
@@ -19,13 +18,13 @@ func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
-	configFile, err := os.Open("config.json")
+	configFile, err := os.Open("config/config.json")
 	if err != nil {
 		logger.Fatal("Failed to read config.json", zap.Error(err))
 	}
 	defer configFile.Close()
 
-	var config []c.Config
+	var config map[string]c.Config
 	decoder := json.NewDecoder(configFile)
 	err = decoder.Decode(&config)
 	if err != nil {
@@ -33,20 +32,16 @@ func main() {
 	}
 
 	nodeIDStr := os.Args[1]
-	nodeID, err := strconv.Atoi(nodeIDStr)
-	if err != nil {
-		logger.Fatal("Failed to parse nodeID", zap.Error(err))
-	}
 
-	listenAddr := config[nodeID].ListenAddr
-	peerAddrs := config[nodeID].Peers
+	listenAddr := config[nodeIDStr].ListenAddr
+	peerAddrs := config[nodeIDStr].Peers
 
-	privKey, err := crypto.NewPrivateKey()
+	_, err = crypto.NewPrivateKey()
 	if err != nil {
 		logger.Fatal("Failed to generate private key", zap.Error(err))
 	}
-	pubKey := privKey.PublicKey()
-	keys := crypto.NewKeys(privKey, pubKey)
+	_ = crypto.NewPublicKey(nil)
+	keys := crypto.NewKeys(nil, nil)
 
 	var (
 		peerCache         = peer.NewPeerCache()

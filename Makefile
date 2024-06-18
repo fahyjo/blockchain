@@ -2,7 +2,7 @@ build:
 	@go build -o bin/blockchain
 
 run: build
-	@./bin/blockchain
+	@./bin/blockchain $(id)
 
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative \

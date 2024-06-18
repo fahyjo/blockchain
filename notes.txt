@@ -9,7 +9,6 @@ NEXT STEPS
 - set up config
 - blocks
 - json server for posting transactions, triggering blocks
-- should probably make memory store implementation for testing
 
 Logging
 - all logging at top level
