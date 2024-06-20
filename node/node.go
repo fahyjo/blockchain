@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net"
 
+	"github.com/fahyjo/blockchain/blocks"
 	"github.com/fahyjo/blockchain/crypto"
 	"github.com/fahyjo/blockchain/peer"
 	proto "github.com/fahyjo/blockchain/proto"
@@ -91,6 +92,15 @@ func (n *Node) Start(peerAddrs []string) error {
 	}
 }
 
+func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto.Vote, error) {
+	_ := blocks.ConvertProtoBlock(protoBlock)
+
+}
+
+func (n *Node) validateBlockHeader(b *blocks.Block) bool {
+
+}
+
 func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction) (*proto.Ack, error) {
 	tx := transactions.ConvertProtoTransaction(protoTx)
 	txID, _ := tx.Hash()
@@ -136,6 +146,7 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 		utxoIDStr := hex.EncodeToString(utxoID)
 		utxo, _ := n.UtxoStore.Get(utxoID)
 		n.Cache.UTXOCache.Put(utxoID, true)
+		// !!!!!!!!!!!!!!!!!!!!!!!! REMOVE
 		err := n.UtxoStore.Put(utxoID, utxo)
 		if err != nil {
 			n.logger.Error("Error post transaction validation: error overwriting utxo in utxo set after marking mempool claimed",

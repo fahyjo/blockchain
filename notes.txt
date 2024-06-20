@@ -22,9 +22,6 @@ Block validation
 - needs to be voted for by maj=ority of validators
 - everything about validators
 
-- mempool = cache of pending transactions
-- so should maintatin cache of utxos claimed by these pedning transactions and take
-that out of utxo store
 
 
 NEXT STEPS
