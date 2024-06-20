@@ -6,6 +6,7 @@ import (
 	"sync"
 )
 
+// TransactionCache keeps track of all the transactions we have seen
 type TransactionCache struct {
 	lock  sync.RWMutex
 	cache map[string]bool

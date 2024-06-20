@@ -10,18 +10,14 @@ import (
 )
 
 type UTXO struct {
-	Amount         int64
-	LockingScript  *transactions.LockingScript
-	BlockIndex     int
-	MempoolClaimed bool
+	Amount        int64
+	LockingScript *transactions.LockingScript
 }
 
-func NewUTXO(amount int64, lockingScript *transactions.LockingScript, blockIndex int) *UTXO {
+func NewUTXO(amount int64, lockingScript *transactions.LockingScript) *UTXO {
 	return &UTXO{
-		Amount:         amount,
-		LockingScript:  lockingScript,
-		BlockIndex:     blockIndex,
-		MempoolClaimed: false,
+		Amount:        amount,
+		LockingScript: lockingScript,
 	}
 }
 

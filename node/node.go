@@ -135,7 +135,7 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 		utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
 		utxoIDStr := hex.EncodeToString(utxoID)
 		utxo, _ := n.UtxoStore.Get(utxoID)
-		utxo.MempoolClaimed = true
+		n.Cache.UTXOCache.Put(utxoID, true)
 		err := n.UtxoStore.Put(utxoID, utxo)
 		if err != nil {
 			n.logger.Error("Error post transaction validation: error overwriting utxo in utxo set after marking mempool claimed",
@@ -199,7 +199,7 @@ func (n *Node) validateTransactionInputs(tx *transactions.Transaction) bool {
 		}
 
 		// checks that the referenced utxo is not claimed by other transaction already in mempool
-		if utxo.MempoolClaimed {
+		if n.Cache.UTXOCache.Has(utxoID) {
 			n.logger.Error("Error validating transaction: transaction contains mempool claimed utxo, transaction not added to mempool",
 				zap.String("txID", txIDStr),
 				zap.String("utxoID", utxoIDStr))

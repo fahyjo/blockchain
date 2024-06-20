@@ -2,13 +2,35 @@ Random
 - need more research on block validation process
 
 Transaction validation
-- inputs can be processed in parallel ????
+- inputs can be processed in parallel
+- only thing is need to check if two inpus reference same utxo
+- instead of checking wiht utxo store, can check with utxo cache and lock maybe
+
+Block validation
+- prev block hash verify + timestamp
+- verify signature to ensure staker possess private key corresponding to staking address
+    - verifies that block has not been changed since it was signed
+    - verifies that the block was signed by valid staker (they have priv key associated with pub
+    key of utxos being staked)
+- do i care if ref utxos spent by transacions in mempool
+    - if od have to change written code
+    - if not need to clean mempool after commit block
+- need to check that no utxos being spent by transactions in same block
+- dobule spend check
+    - transacitons already gone throug, mempool, txs in same block
+- sig verification for each input
+- needs to be voted for by maj=ority of validators
+- everything about validators
+
+- mempool = cache of pending transactions
+- so should maintatin cache of utxos claimed by these pedning transactions and take
+that out of utxo store
 
 
 NEXT STEPS
-- set up config
-- blocks
-- json server for posting transactions, triggering blocks
+- block validation
+- jgrpc server for building blocks + transactions
+- testing
 
 Logging
 - all logging at top level

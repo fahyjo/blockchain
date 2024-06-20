@@ -5,6 +5,7 @@ import (
 	"sync"
 )
 
+// PeerCache keeps track of all known peers
 type PeerCache struct {
 	lock  sync.RWMutex
 	Cache map[string]*Peer

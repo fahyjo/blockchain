@@ -47,7 +47,8 @@ func main() {
 		peerCache         = peer.NewPeerCache()
 		transactionsCache = transactions.NewTransactionCache()
 		mempool           = transactions.NewMempool()
-		cache             = n.NewCache(peerCache, transactionsCache, mempool)
+		utxoCache         = utxos.NewUTXOCache()
+		cache             = n.NewCache(peerCache, transactionsCache, mempool, utxoCache)
 	)
 
 	var (

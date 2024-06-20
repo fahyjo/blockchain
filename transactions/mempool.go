@@ -6,15 +6,16 @@ import (
 	"sync"
 )
 
+// Mempool keeps track of all currently pending transactions
 type Mempool struct {
 	lock  sync.RWMutex
-	cache map[string][]byte
+	cache map[string]*Transaction
 }
 
 func NewMempool() *Mempool {
 	return &Mempool{
 		lock:  sync.RWMutex{},
-		cache: make(map[string][]byte),
+		cache: make(map[string]*Transaction),
 	}
 }
 
@@ -23,14 +24,9 @@ func (m *Mempool) Get(txID []byte) (*Transaction, error) {
 	defer m.lock.RUnlock()
 
 	txIDStr := hex.EncodeToString(txID)
-	b, ok := m.cache[txIDStr]
+	tx, ok := m.cache[txIDStr]
 	if !ok {
 		return nil, fmt.Errorf("mempool cache miss: %s", txIDStr)
-	}
-
-	tx, err := DecodeTransaction(b)
-	if err != nil {
-		return nil, err
 	}
 
 	return tx, nil
@@ -44,13 +40,9 @@ func (m *Mempool) Put(tx *Transaction) error {
 	if err != nil {
 		return err
 	}
-
 	txIDStr := hex.EncodeToString(txID)
-	b, err := EncodeTransaction(tx)
-	if err != nil {
-		return err
-	}
-	m.cache[txIDStr] = b
+
+	m.cache[txIDStr] = tx
 
 	return nil
 }
