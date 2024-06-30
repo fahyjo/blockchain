@@ -20,10 +20,14 @@ type Node struct {
 	ListenAddr string
 	Height     int64
 
+	validatorSet map[string]bool
+	round        int
+
 	*crypto.Keys
 
 	*Cache
 	*Store
+	Mempool *transactions.Mempool
 
 	logger *zap.Logger
 
@@ -36,6 +40,7 @@ func NewNode(
 	keys *crypto.Keys,
 	cache *Cache,
 	store *Store,
+	mempool *transactions.Mempool,
 	logger *zap.Logger) *Node {
 	return &Node{
 		ListenAddr: listenAddr,
@@ -43,6 +48,7 @@ func NewNode(
 		Keys:       keys,
 		Cache:      cache,
 		Store:      store,
+		Mempool:    mempool,
 		logger:     logger,
 	}
 }
@@ -92,13 +98,96 @@ func (n *Node) Start(peerAddrs []string) error {
 	}
 }
 
-func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto.Vote, error) {
-	_ := blocks.ConvertProtoBlock(protoBlock)
+func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto.Ack, error) {
+	ack := &proto.Ack{}
+	block := blocks.ConvertProtoBlock(protoBlock)
+	blockID, err := block.Hash()
+	if err != nil {
+		n.logger.Error("Handle Block: error hashing block", zap.Error(err))
+		return ack, err
+	}
+	blockIDStr := hex.EncodeToString(blockID)
 
+	// check if already seen this block
+	ok := n.BlockCache.Has(blockID)
+	if ok {
+		return ack, nil
+	} else {
+		n.BlockCache.Put(blockID, true)
+	}
+
+	n.logger.Info("Received new block, validating block ...", zap.String("blockID", blockIDStr))
+
+	// validate block
+	ok = n.validateBlock(block)
+	if !ok {
+		return ack, nil
+	}
+
+	n.logger.Info("Successfully validated block, broadcasting block ...", zap.String("blockID", blockIDStr))
+
+	// step 3: broadcast block
+	err = n.broadcastBlock(protoBlock)
+	if err != nil {
+		n.logger.Error("Error broadcasting block", zap.String("blockID", blockIDStr), zap.Error(err))
+	}
+
+	n.logger.Info("Successfully broadcasted block, broadcasting vote ...", zap.String("blockID", blockIDStr))
+
+	// step 2: vote for block
+	err = n.broadcastVote(blockID, true)
+	if err != nil {
+		n.logger.Error("Error broadcasting vote", zap.String("blockID", blockIDStr), zap.Error(err))
+	}
+
+	n.logger.Info("Successfully broadcasted vote", zap.String("blockID", blockIDStr))
+
+	return ack, nil
 }
 
-func (n *Node) validateBlockHeader(b *blocks.Block) bool {
+func (n *Node) validateBlock(b *blocks.Block) bool {
+	// step 1: verify signature
 
+	// step 2: verify hash of merkle tree root
+
+	// step 3: validate prev block hash + height
+
+	// step 4: validate timestamp
+
+	// step 5: validate transactions
+	// - double spend (txs gone through, txs in mempool, txs in same block)
+	return false
+}
+
+func (n *Node) broadcastBlock(protoBlock *proto.Block) error {
+	for _, p := range n.PeerCache.Cache {
+		client := p.Client
+		_, err := client.HandleBlock(context.Background(), protoBlock)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (n *Node) broadcastVote(blockID []byte, vote bool) error {
+	protoVote := &proto.Vote{
+		BlockID: blockID,
+		Vote:    vote,
+	}
+	for _, p := range n.PeerCache.Cache {
+		client := p.Client
+		_, err := client.HandleVote(context.Background(), protoVote)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (n *Node) HandleVote(ctx context.Context, protoVote *proto.Vote) (*proto.Ack, error) {
+	ack := &proto.Ack{}
+	return ack, nil
 }
 
 func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction) (*proto.Ack, error) {
@@ -108,22 +197,16 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	ack := &proto.Ack{}
 
 	// check if already seen this transaction
-	seen := n.TransactionCache.Has(txID)
-	if seen {
+	ok := n.TransactionCache.Has(txID)
+	if ok {
 		return ack, nil
 	}
 	n.TransactionCache.Put(txID, true)
 
-	n.logger.Info("Received new transaction, validating ...", zap.String("txID", txIDStr))
+	n.logger.Info("Received new transaction, validating transaction ...", zap.String("txID", txIDStr))
 
-	// validate transaction inputs
-	ok := n.validateTransactionInputs(tx)
-	if !ok {
-		return ack, nil
-	}
-
-	// validate transaction outputs
-	ok = n.validateTransactionOutputs(tx)
+	// validate transaction
+	ok = n.validateTransaction(tx, txID)
 	if !ok {
 		return ack, nil
 	}
@@ -131,56 +214,52 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	n.logger.Info("Successfully validated transaction, adding to mempool", zap.String("txID", txIDStr))
 
 	// add valid transaction to mempool
-	err := n.Mempool.Put(tx)
-	if err != nil {
-		n.logger.Error("Error post transaction validation: error adding valid transaction to mempool",
-			zap.String("txID", txIDStr))
-		return ack, nil
-	}
+	n.Mempool.PutTransaction(txID, tx)
 
-	n.logger.Info("Successfully added transaction to mempool, marking ref utxos as claimed", zap.String("txID", txIDStr), zap.Int("mempool size", n.Mempool.Size()))
+	n.logger.Info("Successfully added transaction to mempool, marking ref utxos as claimed", zap.String("txID", txIDStr), zap.Int("mempool size", n.Mempool.TransactionsSize()))
 
 	// mark all referenced utxos as mempool claimed
 	for _, input := range tx.Inputs {
 		utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
-		utxoIDStr := hex.EncodeToString(utxoID)
-		utxo, _ := n.UtxoStore.Get(utxoID)
-		n.Cache.UTXOCache.Put(utxoID, true)
-		// !!!!!!!!!!!!!!!!!!!!!!!! REMOVE
-		err := n.UtxoStore.Put(utxoID, utxo)
-		if err != nil {
-			n.logger.Error("Error post transaction validation: error overwriting utxo in utxo set after marking mempool claimed",
-				zap.String("txID", txIDStr),
-				zap.String("utxoID", utxoIDStr))
-		}
+		n.Mempool.PutUTXO(utxoID, true)
 	}
 
 	n.logger.Info("Successfully marked ref utxos, broadcasting transaction", zap.String("txID", txIDStr))
 
 	// broadcast transactions to peers
-	ok = n.broadcastTransaction(tx)
-	if !ok {
+	err := n.broadcastTransaction(protoTx)
+	if err != nil {
+		n.logger.Error("Error broadcasting transaction", zap.String("txID", txIDStr), zap.Error(err))
 		return ack, nil
 	}
 
 	return ack, nil
 }
 
-func (n *Node) validateTransactionInputs(tx *transactions.Transaction) bool {
-	txID, err := tx.Hash()
-	if err != nil {
-		n.logger.Error("Error validating transaction, unable to calculate txID", zap.Error(err))
+func (n *Node) validateTransaction(tx *transactions.Transaction, txID []byte) bool {
+	ok := n.validateTransactionInputs(tx.Inputs, txID)
+	if !ok {
 		return false
 	}
+
+	ok = n.validateTransactionOutputs(tx.Inputs, tx.Outputs, txID)
+	if !ok {
+		return false
+	}
+
+	return true
+}
+
+func (n *Node) validateTransactionInputs(inputs []*transactions.Input, txID []byte) bool {
 	txIDStr := hex.EncodeToString(txID)
 
 	var seenUTXOs map[string]bool
-	for i, input := range tx.Inputs {
+	for i, input := range inputs {
 		// checks that the input signature is valid
 		if !input.UnlockingScript.Sig.Verify(input.UnlockingScript.PubKey, txID) {
-			n.logger.Error("Error validating transaction: transaction contains input with invalid signature, transaction not added to mempool",
-				zap.String("txID", hex.EncodeToString(txID)),
-				zap.Int("input index", i))
+			n.logger.Error("Error validating transaction: transaction contains input with invalid signature",
+				zap.String("txID", txIDStr),
+				zap.Int("inputIndex", i))
 			return false
 		}
 
@@ -191,8 +270,9 @@ func (n *Node) validateTransactionInputs(tx *transactions.Transaction) bool {
 		_, ok := seenUTXOs[utxoIDStr]
 		if ok {
 			n.logger.Error(
-				"Error validating transaction: transaction contains multiple inputs referencing the same utxo, transaction not added to mempool",
+				"Error validating transaction: transaction contains multiple inputs referencing the same utxo",
 				zap.String("txID", txIDStr),
+				zap.Int("inputIndex", i),
 				zap.String("utxoID", utxoIDStr))
 			return false
 		} else {
@@ -202,17 +282,19 @@ func (n *Node) validateTransactionInputs(tx *transactions.Transaction) bool {
 		// checks that the referenced utxo exists/is not spent
 		utxo, err := n.UtxoStore.Get(utxoID)
 		if err != nil {
-			n.logger.Error("Error validating transaction: transaction contains input referencing nonexistent utxo, transaction not added to mempool",
+			n.logger.Error("Error validating transaction: transaction contains input referencing nonexistent utxo",
 				zap.Error(err),
 				zap.String("txID", txIDStr),
+				zap.Int("inputIndex", i),
 				zap.String("utxoID", utxoIDStr))
 			return false
 		}
 
 		// checks that the referenced utxo is not claimed by other transaction already in mempool
-		if n.Cache.UTXOCache.Has(utxoID) {
-			n.logger.Error("Error validating transaction: transaction contains mempool claimed utxo, transaction not added to mempool",
+		if n.Mempool.HasUTXO(utxoID) {
+			n.logger.Error("Error validating transaction: transaction contains mempool claimed utxo",
 				zap.String("txID", txIDStr),
+				zap.Int("inputIndex", i),
 				zap.String("utxoID", utxoIDStr))
 			return false
 		}
@@ -221,39 +303,35 @@ func (n *Node) validateTransactionInputs(tx *transactions.Transaction) bool {
 		if !input.UnlockingScript.Unlock(utxo.LockingScript) {
 			uPubKeyHashStr := hex.EncodeToString(input.UnlockingScript.PubKey.Hash())
 			lPubKeyHashStr := hex.EncodeToString(utxo.LockingScript.PubKeyHash)
-			n.logger.Error("Error validating transaction: transaction contains input that does not unlock referenced utxo, transaction not added to mempool",
+			n.logger.Error("Error validating transaction: transaction contains input that does not unlock referenced utxo",
 				zap.String("txID", txIDStr),
+				zap.Int("inputIndex", i),
 				zap.String("unlocking script pub key hash", uPubKeyHashStr),
 				zap.String("utxoID", utxoIDStr),
-				zap.String("locking pub key hash", lPubKeyHashStr))
+				zap.String("locking script pub key hash", lPubKeyHashStr))
 			return false
 		}
 	}
 	return true
 }
 
-func (n *Node) validateTransactionOutputs(tx *transactions.Transaction) bool {
-	txID, err := tx.Hash()
-	if err != nil {
-		n.logger.Error("Error validating transaction, unable to calculate txID", zap.Error(err))
-		return false
-	}
+func (n *Node) validateTransactionOutputs(inputs []*transactions.Input, outputs []*transactions.Output, txID []byte) bool {
 	txIDStr := hex.EncodeToString(txID)
 
 	var totalAmount int64
-	for _, input := range tx.Inputs {
+	for _, input := range inputs {
 		utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
 		utxo, _ := n.UtxoStore.Get(utxoID)
 		totalAmount += utxo.Amount
 	}
 
-	for i, output := range tx.Outputs {
+	for i, output := range outputs {
 		// checks output amount is non-negative
 		amount := output.Amount
 		if amount < 0 {
 			n.logger.Error("Error validating transaction: transaction contains output with negative amount",
 				zap.String("txID", txIDStr),
-				zap.Int("utxoIndex", i))
+				zap.Int("outputIndex", i))
 			return false
 		}
 		// checks total output amount is not greater than total input amount
@@ -267,27 +345,15 @@ func (n *Node) validateTransactionOutputs(tx *transactions.Transaction) bool {
 	return true
 }
 
-func (n *Node) broadcastTransaction(tx *transactions.Transaction) bool {
-	txID, err := tx.Hash()
-	if err != nil {
-		n.logger.Error("Error broadcasting transaction, unable to calculate txID", zap.Error(err))
-		return false
-	}
-	txIDStr := hex.EncodeToString(txID)
-
-	protoTx := transactions.ConvertTransaction(tx)
-	for peerAddr, p := range n.PeerCache.Cache {
+func (n *Node) broadcastTransaction(protoTx *proto.Transaction) error {
+	for _, p := range n.PeerCache.Cache {
 		client := p.Client
 		_, err := client.HandleTransaction(context.Background(), protoTx)
 		if err != nil {
-			n.logger.Error("Error broadcasting transaction",
-				zap.Error(err),
-				zap.String("txID", txIDStr),
-				zap.String("peer", peerAddr))
-			return false
+			return err
 		}
 	}
-	return true
+	return nil
 }
 
 func (n *Node) HandleHandshake(ctx context.Context, peerMsg *proto.Handshake) (*proto.Handshake, error) {

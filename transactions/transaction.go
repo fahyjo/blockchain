@@ -18,9 +18,9 @@ func NewTransaction(inputs []*Input, outputs []*Output) *Transaction {
 
 func (tx *Transaction) Hash() ([]byte, error) {
 	var unlockingScripts []*UnlockingScript
-	for _, input := range tx.Inputs {
+	for i, input := range tx.Inputs {
 		unlockingScripts = append(unlockingScripts, input.UnlockingScript)
-		input.UnlockingScript = nil
+		tx.Inputs[i] = nil
 	}
 
 	b, err := EncodeTransaction(tx)
@@ -29,8 +29,8 @@ func (tx *Transaction) Hash() ([]byte, error) {
 	}
 	hash := sha256.Sum256(b)
 
-	for i, input := range tx.Inputs {
-		input.UnlockingScript = unlockingScripts[i]
+	for i, _ := range tx.Inputs {
+		tx.Inputs[i].UnlockingScript = unlockingScripts[i]
 	}
 
 	return hash[:], nil

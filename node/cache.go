@@ -1,23 +1,21 @@
 package node
 
 import (
+	"github.com/fahyjo/blockchain/blocks"
 	"github.com/fahyjo/blockchain/peer"
 	"github.com/fahyjo/blockchain/transactions"
-	"github.com/fahyjo/blockchain/utxos"
 )
 
 type Cache struct {
 	PeerCache        *peer.PeerCache
+	BlockCache       *blocks.BlockCache
 	TransactionCache *transactions.TransactionCache
-	Mempool          *transactions.Mempool
-	UTXOCache        *utxos.UTXOCache
 }
 
-func NewCache(pc *peer.PeerCache, tc *transactions.TransactionCache, mp *transactions.Mempool, uc *utxos.UTXOCache) *Cache {
+func NewCache(pc *peer.PeerCache, bc *blocks.BlockCache, tc *transactions.TransactionCache) *Cache {
 	return &Cache{
 		PeerCache:        pc,
+		BlockCache:       bc,
 		TransactionCache: tc,
-		Mempool:          mp,
-		UTXOCache:        uc,
 	}
 }

@@ -8,54 +8,73 @@ import (
 
 // Mempool keeps track of all currently pending transactions
 type Mempool struct {
-	lock  sync.RWMutex
-	cache map[string]*Transaction
+	transactionLock sync.RWMutex
+	transactions    map[string]*Transaction
+
+	utxoLock sync.RWMutex
+	utxos    map[string]bool
 }
 
 func NewMempool() *Mempool {
 	return &Mempool{
-		lock:  sync.RWMutex{},
-		cache: make(map[string]*Transaction),
+		transactionLock: sync.RWMutex{},
+		transactions:    make(map[string]*Transaction),
+		utxoLock:        sync.RWMutex{},
+		utxos:           make(map[string]bool),
 	}
 }
 
-func (m *Mempool) Get(txID []byte) (*Transaction, error) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
+func (m *Mempool) GetTransaction(txID []byte) (*Transaction, error) {
+	m.transactionLock.RLock()
+	defer m.transactionLock.RUnlock()
 
 	txIDStr := hex.EncodeToString(txID)
-	tx, ok := m.cache[txIDStr]
+	tx, ok := m.transactions[txIDStr]
 	if !ok {
-		return nil, fmt.Errorf("mempool cache miss: %s", txIDStr)
+		return nil, fmt.Errorf("mempool transactions cache miss: %s", txIDStr)
 	}
 
 	return tx, nil
 }
 
-func (m *Mempool) Put(tx *Transaction) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (m *Mempool) PutTransaction(txID []byte, tx *Transaction) {
+	m.transactionLock.Lock()
+	defer m.transactionLock.Unlock()
 
-	txID, err := tx.Hash()
-	if err != nil {
-		return err
-	}
 	txIDStr := hex.EncodeToString(txID)
-
-	m.cache[txIDStr] = tx
-
-	return nil
+	m.transactions[txIDStr] = tx
 }
 
-func (m *Mempool) Has(txID []byte) bool {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
+func (m *Mempool) HasTransaction(txID []byte) bool {
+	m.transactionLock.RLock()
+	defer m.transactionLock.RUnlock()
 
 	txIDStr := hex.EncodeToString(txID)
-	_, ok := m.cache[txIDStr]
+	_, ok := m.transactions[txIDStr]
 	return ok
 }
 
-func (m *Mempool) Size() int {
-	return len(m.cache)
+func (m *Mempool) TransactionsSize() int {
+	return len(m.transactions)
+}
+
+func (m *Mempool) PutUTXO(utxoID []byte, b bool) {
+	m.utxoLock.Lock()
+	defer m.utxoLock.Unlock()
+
+	utxoIDStr := hex.EncodeToString(utxoID)
+	m.utxos[utxoIDStr] = b
+}
+
+func (m *Mempool) HasUTXO(utxoID []byte) bool {
+	m.utxoLock.RLock()
+	defer m.utxoLock.RUnlock()
+
+	utxoIDStr := hex.EncodeToString(utxoID)
+	_, ok := m.utxos[utxoIDStr]
+	return ok
+}
+
+func (m *Mempool) UTXOsSize() int {
+	return len(m.utxos)
 }

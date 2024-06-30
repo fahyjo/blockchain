@@ -5,7 +5,8 @@ option go_package = "github.com/fahyjo/blockchain";
 service Node {
   rpc HandleHandshake(Handshake) returns (Handshake);
   rpc HandleTransaction(Transaction) returns (Ack);
-  rpc HandleBlock(Block) returns (Vote);
+  rpc HandleBlock(Block) returns (Ack);
+  rpc HandleVote(Vote) returns (Ack);
 }
 
 message Handshake {
@@ -17,7 +18,8 @@ message Handshake {
 message Ack {
 }
 message Vote {
-  bool vote = 1;
+  bytes blockID = 1;
+  bool vote = 2;
 }
 
 message Block {

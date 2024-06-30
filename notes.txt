@@ -22,16 +22,80 @@ Block validation
 - needs to be voted for by maj=ority of validators
 - everything about validators
 
+- take mempool out of cache
+- caches will map idStr to info about that thing, exception of peer cache
+-
+
+Consensus
+- validators
+    - nodes with signgiciat amount of crypto are validators
+    - responsible for vlaidaitng transactions
+    - can be proposer
+- Proposer
+    - validator is chosen to propose a block
+    - liklihood of being chosen to validate block proportional to stake in network
+- Slashing
+    - any nodes found to be acting maliciously have their stake slashed
+    - mainly for validators (significant stake holders that influence network)
+- Rewards
+    - validators are rewared for partiicaption -> get rewarded transaction fees
+    - rewards distributed proportional to stake
+- Ouroboros Consensus Protocol
+    - protocol divided into epochs and slots
+    - each slot has designated slot leader responsible for creating a block
+    - slot leaders selected randmoy using multi party computtion process
+    - can delegate stake to a staking pool if they do not wish to be directly involved in validation
+    - at the end of each epoch, checkpints are created
+Tendermint Protocol BFT PoS
+- propose phase
+    - proposer is selcted to prose new block of transactions
+    - proosed block is broadcast to all validators
+- prevote phase
+    - validators receive the proposed block and braodcast a pre-vote message if they consider the block valid
+    - if validator recvied supermajorit of pre-votes for the proposed block, it moves to pre-commit phase
+- precommit phase
+    - validators broadcast pre-commit message if they revceive supermajhort of pre votes for proposed block
+    - if vlaidators receives suieprmajhoprty of pre commits , block is consdierd locked
+- commit phase
+    - validotrs broadcast commit messages for the locked blokc
+    - once a supermajoriyt of commit messages is recigfed, block is added to blockchain
+- info
+    - can tolerate up to one third of vlaidators acting maliciously
+    - blocks are immediately final once they are committed
+    - requires a fixed set of validators
+    - validators are rewarded for validating and proposing blocks, punished for malicous behaviuor
+    - have initial set of validaotrs
+        - two thirds of validators for validator change
+- implement
+    - set of validators at start
+    - just iterate through list for each round
+    - start with ten nodes, 3 of them validators
+
+
 
 
 NEXT STEPS
-- block validation
-- jgrpc server for building blocks + transactions
+- might be useful to exchange public keys in handshake, refactor peer cache, other caches
+- block validation - keep track of block being proposed, phase, how many commits ...
+- staking
+- which nodes are and are not validators
+- triggers
 - testing
+
+Caches
+- transaction cache is good
+- block ccahce refactor to match transactgion cache'
+- maybe add more to peer cache
 
 Logging
 - all logging at top level
 - info for moving between steps
 - error when encounter error
-- decide if grpc method returns error on per method basis
 - break out behavioral units to helper functions, they can log errors, but not info since one step
+- all validation breakdouts are considered top level -> error logging in there is fine
+
+Design Decisions
+- validator node will broadcast commits/votes to whole network
+- validators only broadcast positive pre-vote/pre-commit messages
+
+Problems

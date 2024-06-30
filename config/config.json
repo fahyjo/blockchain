@@ -8,6 +8,13 @@
       "block": "db/1/block",
       "transaction": "db/1/transaction",
       "utxo": "db/1/utxo"
+    },
+    "crypto": {
+      "publicKey": "",
+      "privateKey": ""
+    },
+    "consensus": {
+      "validators": []
     }
   },
   "2": {

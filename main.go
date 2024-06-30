@@ -45,10 +45,9 @@ func main() {
 
 	var (
 		peerCache         = peer.NewPeerCache()
+		blockCache        = blocks.NewBlockCache()
 		transactionsCache = transactions.NewTransactionCache()
-		mempool           = transactions.NewMempool()
-		utxoCache         = utxos.NewUTXOCache()
-		cache             = n.NewCache(peerCache, transactionsCache, mempool, utxoCache)
+		cache             = n.NewCache(peerCache, blockCache, transactionsCache)
 	)
 
 	var (
@@ -58,7 +57,9 @@ func main() {
 		store            = n.NewStore(blockStore, transactionStore, utxoStore)
 	)
 
-	node := n.NewNode(listenAddr, 0, keys, cache, store, logger)
+	mempool := transactions.NewMempool()
+
+	node := n.NewNode(listenAddr, 0, keys, cache, store, mempool, logger)
 	err = node.Start(peerAddrs)
 	if err != nil {
 		logger.Fatal("Failed to start node", zap.Error(err))
