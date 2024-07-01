@@ -6,7 +6,8 @@ service Node {
   rpc HandleHandshake(Handshake) returns (Handshake);
   rpc HandleTransaction(Transaction) returns (Ack);
   rpc HandleBlock(Block) returns (Ack);
-  rpc HandleVote(Vote) returns (Ack);
+  rpc HandlePreVote(PreVote) returns (Ack);
+  rpc HandlePreCommit(PreCommit) returns (Ack);
 }
 
 message Handshake {
@@ -17,9 +18,16 @@ message Handshake {
 
 message Ack {
 }
-message Vote {
+message PreVote {
   bytes blockID = 1;
-  bool vote = 2;
+  bytes sig = 2;
+  bytes pubKey = 3;
+}
+
+message PreCommit {
+  bytes blockID = 1;
+  bytes sig = 2;
+  bytes pubKey = 3;
 }
 
 message Block {

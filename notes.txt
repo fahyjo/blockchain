@@ -69,7 +69,7 @@ Tendermint Protocol BFT PoS
 - implement
     - set of validators at start
     - just iterate through list for each round
-    - start with ten nodes, 3 of them validators
+    - start with 15 nodes, 6 of them validators
 
 
 
@@ -77,8 +77,7 @@ Tendermint Protocol BFT PoS
 NEXT STEPS
 - might be useful to exchange public keys in handshake, refactor peer cache, other caches
 - block validation - keep track of block being proposed, phase, how many commits ...
-- staking
-- which nodes are and are not validators
+- consensus config
 - triggers
 - testing
 

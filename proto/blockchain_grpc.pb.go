@@ -22,7 +22,8 @@ const (
 	Node_HandleHandshake_FullMethodName   = "/Node/HandleHandshake"
 	Node_HandleTransaction_FullMethodName = "/Node/HandleTransaction"
 	Node_HandleBlock_FullMethodName       = "/Node/HandleBlock"
-	Node_HandleVote_FullMethodName        = "/Node/HandleVote"
+	Node_HandlePreVote_FullMethodName     = "/Node/HandlePreVote"
+	Node_HandlePreCommit_FullMethodName   = "/Node/HandlePreCommit"
 )
 
 // NodeClient is the client API for Node service.
@@ -32,7 +33,8 @@ type NodeClient interface {
 	HandleHandshake(ctx context.Context, in *Handshake, opts ...grpc.CallOption) (*Handshake, error)
 	HandleTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Ack, error)
 	HandleBlock(ctx context.Context, in *Block, opts ...grpc.CallOption) (*Ack, error)
-	HandleVote(ctx context.Context, in *Vote, opts ...grpc.CallOption) (*Ack, error)
+	HandlePreVote(ctx context.Context, in *PreVote, opts ...grpc.CallOption) (*Ack, error)
+	HandlePreCommit(ctx context.Context, in *PreCommit, opts ...grpc.CallOption) (*Ack, error)
 }
 
 type nodeClient struct {
@@ -73,10 +75,20 @@ func (c *nodeClient) HandleBlock(ctx context.Context, in *Block, opts ...grpc.Ca
 	return out, nil
 }
 
-func (c *nodeClient) HandleVote(ctx context.Context, in *Vote, opts ...grpc.CallOption) (*Ack, error) {
+func (c *nodeClient) HandlePreVote(ctx context.Context, in *PreVote, opts ...grpc.CallOption) (*Ack, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Ack)
-	err := c.cc.Invoke(ctx, Node_HandleVote_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Node_HandlePreVote_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeClient) HandlePreCommit(ctx context.Context, in *PreCommit, opts ...grpc.CallOption) (*Ack, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Ack)
+	err := c.cc.Invoke(ctx, Node_HandlePreCommit_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +102,8 @@ type NodeServer interface {
 	HandleHandshake(context.Context, *Handshake) (*Handshake, error)
 	HandleTransaction(context.Context, *Transaction) (*Ack, error)
 	HandleBlock(context.Context, *Block) (*Ack, error)
-	HandleVote(context.Context, *Vote) (*Ack, error)
+	HandlePreVote(context.Context, *PreVote) (*Ack, error)
+	HandlePreCommit(context.Context, *PreCommit) (*Ack, error)
 	mustEmbedUnimplementedNodeServer()
 }
 
@@ -107,8 +120,11 @@ func (UnimplementedNodeServer) HandleTransaction(context.Context, *Transaction) 
 func (UnimplementedNodeServer) HandleBlock(context.Context, *Block) (*Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HandleBlock not implemented")
 }
-func (UnimplementedNodeServer) HandleVote(context.Context, *Vote) (*Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method HandleVote not implemented")
+func (UnimplementedNodeServer) HandlePreVote(context.Context, *PreVote) (*Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HandlePreVote not implemented")
+}
+func (UnimplementedNodeServer) HandlePreCommit(context.Context, *PreCommit) (*Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HandlePreCommit not implemented")
 }
 func (UnimplementedNodeServer) mustEmbedUnimplementedNodeServer() {}
 
@@ -177,20 +193,38 @@ func _Node_HandleBlock_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Node_HandleVote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Vote)
+func _Node_HandlePreVote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreVote)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NodeServer).HandleVote(ctx, in)
+		return srv.(NodeServer).HandlePreVote(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Node_HandleVote_FullMethodName,
+		FullMethod: Node_HandlePreVote_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodeServer).HandleVote(ctx, req.(*Vote))
+		return srv.(NodeServer).HandlePreVote(ctx, req.(*PreVote))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Node_HandlePreCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreCommit)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).HandlePreCommit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_HandlePreCommit_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).HandlePreCommit(ctx, req.(*PreCommit))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -215,8 +249,12 @@ var Node_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Node_HandleBlock_Handler,
 		},
 		{
-			MethodName: "HandleVote",
-			Handler:    _Node_HandleVote_Handler,
+			MethodName: "HandlePreVote",
+			Handler:    _Node_HandlePreVote_Handler,
+		},
+		{
+			MethodName: "HandlePreCommit",
+			Handler:    _Node_HandlePreCommit_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

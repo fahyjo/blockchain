@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/fahyjo/blockchain/blocks"
+	"github.com/fahyjo/blockchain/consensus"
 	"github.com/fahyjo/blockchain/crypto"
 	"github.com/fahyjo/blockchain/peer"
 	proto "github.com/fahyjo/blockchain/proto"
@@ -20,10 +21,9 @@ type Node struct {
 	ListenAddr string
 	Height     int64
 
-	validatorSet map[string]bool
-	round        int
-
 	*crypto.Keys
+
+	consensus *consensus.Consensus
 
 	*Cache
 	*Store
@@ -100,6 +100,12 @@ func (n *Node) Start(peerAddrs []string) error {
 
 func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto.Ack, error) {
 	ack := &proto.Ack{}
+
+	// check that we are in the proposal phase
+	if n.consensus.Phase != consensus.Proposal {
+		return ack, nil
+	}
+
 	block := blocks.ConvertProtoBlock(protoBlock)
 	blockID, err := block.Hash()
 	if err != nil {
@@ -118,6 +124,15 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 
 	n.logger.Info("Received new block, validating block ...", zap.String("blockID", blockIDStr))
 
+	// check that the creator of the block is the designated proposer for this round
+	if n.consensus.ProposerID != hex.EncodeToString(block.PubKey.Bytes()) {
+		n.logger.Error("Error validating block, creator of block is not the designated proposer for this round",
+			zap.String("proposerID", n.consensus.ProposerID),
+			zap.String("blockCreator", hex.EncodeToString(block.PubKey.Bytes())),
+			zap.String("blockID", blockIDStr))
+		return ack, nil
+	}
+
 	// validate block
 	ok = n.validateBlock(block)
 	if !ok {
@@ -126,21 +141,30 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 
 	n.logger.Info("Successfully validated block, broadcasting block ...", zap.String("blockID", blockIDStr))
 
-	// step 3: broadcast block
+	// broadcast block
 	err = n.broadcastBlock(protoBlock)
 	if err != nil {
 		n.logger.Error("Error broadcasting block", zap.String("blockID", blockIDStr), zap.Error(err))
 	}
 
-	n.logger.Info("Successfully broadcasted block, broadcasting vote ...", zap.String("blockID", blockIDStr))
+	n.logger.Info("Successfully broadcasted block, broadcasting preVote ...", zap.String("blockID", blockIDStr))
 
-	// step 2: vote for block
-	err = n.broadcastVote(blockID, true)
-	if err != nil {
-		n.logger.Error("Error broadcasting vote", zap.String("blockID", blockIDStr), zap.Error(err))
+	// broadcast preVote
+	if n.consensus.AmValidator {
+		err = n.broadcastPreVote(blockID, true)
+		if err != nil {
+			n.logger.Error("Error broadcasting preVote", zap.String("blockID", blockIDStr), zap.Error(err))
+		}
+		n.consensus.PreVotes++
+		n.consensus.PreCommitters = append(n.consensus.PreCommitters, hex.EncodeToString(n.PublicKey.Bytes()))
 	}
 
-	n.logger.Info("Successfully broadcasted vote", zap.String("blockID", blockIDStr))
+	// save block ID and block, move to preVote phase
+	n.consensus.BlockID = blockID
+	n.consensus.Block = block
+	n.consensus.NextPhase()
+
+	n.logger.Info("Successfully broadcasted preVote", zap.String("blockID", blockIDStr))
 
 	return ack, nil
 }
@@ -170,14 +194,17 @@ func (n *Node) broadcastBlock(protoBlock *proto.Block) error {
 	return nil
 }
 
-func (n *Node) broadcastVote(blockID []byte, vote bool) error {
-	protoVote := &proto.Vote{
+func (n *Node) broadcastPreVote(blockID []byte, vote bool) error {
+	sig := n.PrivateKey.Sign(blockID)
+	protoPreVote := &proto.PreVote{
 		BlockID: blockID,
-		Vote:    vote,
+		Sig:     sig.Bytes(),
+		PubKey:  n.PublicKey.Bytes(),
 	}
+
 	for _, p := range n.PeerCache.Cache {
 		client := p.Client
-		_, err := client.HandleVote(context.Background(), protoVote)
+		_, err := client.HandlePreVote(context.Background(), protoPreVote)
 		if err != nil {
 			return err
 		}
@@ -185,7 +212,30 @@ func (n *Node) broadcastVote(blockID []byte, vote bool) error {
 	return nil
 }
 
-func (n *Node) HandleVote(ctx context.Context, protoVote *proto.Vote) (*proto.Ack, error) {
+func (n *Node) broadcastPreCommit(blockID []byte, vote bool) error {
+	sig := n.PrivateKey.Sign(blockID)
+	protoPreCommit := &proto.PreCommit{
+		BlockID: blockID,
+		Sig:     sig.Bytes(),
+		PubKey:  n.PublicKey.Bytes(),
+	}
+
+	for _, p := range n.PeerCache.Cache {
+		client := p.Client
+		_, err := client.HandlePreCommit(context.Background(), protoPreCommit)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (n *Node) HandlePreVote(ctx context.Context, protoVote *proto.PreVote) (*proto.Ack, error) {
+	ack := &proto.Ack{}
+	return ack, nil
+}
+
+func (n *Node) HandlePreCommit(ctx context.Context, protoCommit *proto.PreCommit) (*proto.Ack, error) {
 	ack := &proto.Ack{}
 	return ack, nil
 }
