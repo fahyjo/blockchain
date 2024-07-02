@@ -102,14 +102,15 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 	ack := &proto.Ack{}
 
 	// check that we are in the proposal phase
-	if n.consensus.Phase != consensus.Proposal {
+	if n.consensus.CurrentRound.CurrentPhase.Value() != "proposal" {
 		return ack, nil
 	}
 
+	// get block, blockID, blockIDStr
 	block := blocks.ConvertProtoBlock(protoBlock)
 	blockID, err := block.Hash()
 	if err != nil {
-		n.logger.Error("Handle Block: error hashing block", zap.Error(err))
+		n.logger.Error("Error hashing block", zap.Error(err))
 		return ack, err
 	}
 	blockIDStr := hex.EncodeToString(blockID)
@@ -124,17 +125,8 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 
 	n.logger.Info("Received new block, validating block ...", zap.String("blockID", blockIDStr))
 
-	// check that the creator of the block is the designated proposer for this round
-	if n.consensus.ProposerID != hex.EncodeToString(block.PubKey.Bytes()) {
-		n.logger.Error("Error validating block, creator of block is not the designated proposer for this round",
-			zap.String("proposerID", n.consensus.ProposerID),
-			zap.String("blockCreator", hex.EncodeToString(block.PubKey.Bytes())),
-			zap.String("blockID", blockIDStr))
-		return ack, nil
-	}
-
 	// validate block
-	ok = n.validateBlock(block)
+	ok = n.validateBlock(block, blockID)
 	if !ok {
 		return ack, nil
 	}
@@ -147,7 +139,12 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 		n.logger.Error("Error broadcasting block", zap.String("blockID", blockIDStr), zap.Error(err))
 	}
 
-	n.logger.Info("Successfully broadcasted block, broadcasting preVote ...", zap.String("blockID", blockIDStr))
+	n.logger.Info("Successfully broadcasted block, moving to preVote phase ...", zap.String("blockID", blockIDStr))
+
+	// move to preVote phase
+	n.consensus.CurrentRound.BlockID = blockID
+	n.consensus.CurrentRound.Block = block
+	n.consensus.CurrentRound.NextPhase()
 
 	// broadcast preVote
 	if n.consensus.AmValidator {
@@ -155,21 +152,32 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 		if err != nil {
 			n.logger.Error("Error broadcasting preVote", zap.String("blockID", blockIDStr), zap.Error(err))
 		}
-		n.consensus.PreVotes++
-		n.consensus.PreCommitters = append(n.consensus.PreCommitters, hex.EncodeToString(n.PublicKey.Bytes()))
+		err = n.consensus.CurrentRound.CurrentPhase.IncrementAttestationCount()
+		if err != nil {
+			n.logger.Error("Error incrementing attestation count", zap.String("blockID", blockIDStr), zap.Error(err))
+		}
+		err = n.consensus.CurrentRound.CurrentPhase.AddValidator(hex.EncodeToString(n.PublicKey.Bytes()))
+		if err != nil {
+			n.logger.Error("Error adding validator", zap.String("blockID", blockIDStr), zap.Error(err))
+		}
 	}
-
-	// save block ID and block, move to preVote phase
-	n.consensus.BlockID = blockID
-	n.consensus.Block = block
-	n.consensus.NextPhase()
 
 	n.logger.Info("Successfully broadcasted preVote", zap.String("blockID", blockIDStr))
 
 	return ack, nil
 }
 
-func (n *Node) validateBlock(b *blocks.Block) bool {
+func (n *Node) validateBlock(block *blocks.Block, blockID []byte) bool {
+	blockIDStr := hex.EncodeToString(blockID)
+
+	// check that the creator of the block is the designated proposer for this round
+	if n.consensus.CurrentRound.ProposerID != hex.EncodeToString(block.PubKey.Bytes()) {
+		n.logger.Error("Error validating block, creator of block is not the designated proposer for this round",
+			zap.String("proposerID", n.consensus.CurrentRound.ProposerID),
+			zap.String("blockCreator", hex.EncodeToString(block.PubKey.Bytes())),
+			zap.String("blockID", blockIDStr))
+		return false
+	}
 	// step 1: verify signature
 
 	// step 2: verify hash of merkle tree root
