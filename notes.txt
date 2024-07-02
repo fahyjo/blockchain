@@ -77,6 +77,8 @@ Tendermint Protocol BFT PoS
 NEXT STEPS
 - might be useful to exchange public keys in handshake, refactor peer cache, other caches
 - block validation - keep track of block being proposed, phase, how many commits ...
+- transaction validation
+    - change mempool check to check that not claimed by someone else (will work for transaction validation in btoh contexts)
 - consensus config
 - triggers
 - testing
