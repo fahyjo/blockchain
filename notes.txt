@@ -70,7 +70,6 @@ Tendermint Protocol BFT PoS
 
 
 NEXT STEPS
-- check handle block
 - might be useful to exchange public keys in handshake, refactor peer cache, other caches
 - block validation
 - transaction validation

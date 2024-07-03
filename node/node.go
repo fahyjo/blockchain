@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"net"
@@ -150,21 +151,28 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 
 	// broadcast preVote if validator
 	if n.consensus.AmValidator {
-		err = n.broadcastPreVote(blockID, true)
+		protoPreVote := &proto.PreVote{
+			BlockID: blockID,
+			Sig:     n.PrivateKey.Sign(blockID).Bytes(),
+			PubKey:  n.PublicKey.Bytes(),
+		}
+		err = n.broadcastPreVote(protoPreVote)
 		if err != nil {
 			n.logger.Error("Error broadcasting preVote", zap.String("blockID", blockIDStr), zap.Error(err))
+		}
+		n.logger.Info("Broadcasted preVote", zap.String("blockID", blockIDStr))
+
+		err = n.consensus.CurrentRound.CurrentPhase.AddValidatorID(hex.EncodeToString(n.PublicKey.Bytes()))
+		if err != nil {
+			n.logger.Error("Error adding validator", zap.String("blockID", blockIDStr), zap.Error(err))
+			return ack, nil
 		}
 		err = n.consensus.CurrentRound.CurrentPhase.IncrementAttestationCount()
 		if err != nil {
 			n.logger.Error("Error incrementing attestation count", zap.String("blockID", blockIDStr), zap.Error(err))
-		}
-		err = n.consensus.CurrentRound.CurrentPhase.AddValidator(hex.EncodeToString(n.PublicKey.Bytes()))
-		if err != nil {
-			n.logger.Error("Error adding validator", zap.String("blockID", blockIDStr), zap.Error(err))
+			return ack, nil
 		}
 	}
-
-	n.logger.Info("Broadcasted preVote", zap.String("blockID", blockIDStr))
 
 	return ack, nil
 }
@@ -204,14 +212,7 @@ func (n *Node) broadcastBlock(protoBlock *proto.Block) error {
 	return nil
 }
 
-func (n *Node) broadcastPreVote(blockID []byte, vote bool) error {
-	sig := n.PrivateKey.Sign(blockID)
-	protoPreVote := &proto.PreVote{
-		BlockID: blockID,
-		Sig:     sig.Bytes(),
-		PubKey:  n.PublicKey.Bytes(),
-	}
-
+func (n *Node) broadcastPreVote(protoPreVote *proto.PreVote) error {
 	for _, p := range n.PeerCache.Cache {
 		client := p.Client
 		_, err := client.HandlePreVote(context.Background(), protoPreVote)
@@ -222,7 +223,7 @@ func (n *Node) broadcastPreVote(blockID []byte, vote bool) error {
 	return nil
 }
 
-func (n *Node) broadcastPreCommit(blockID []byte, vote bool) error {
+func (n *Node) broadcastPreCommit(blockID []byte) error {
 	sig := n.PrivateKey.Sign(blockID)
 	protoPreCommit := &proto.PreCommit{
 		BlockID: blockID,
@@ -240,12 +241,97 @@ func (n *Node) broadcastPreCommit(blockID []byte, vote bool) error {
 	return nil
 }
 
-func (n *Node) HandlePreVote(ctx context.Context, protoVote *proto.PreVote) (*proto.Ack, error) {
+func (n *Node) HandlePreVote(ctx context.Context, protoPreVote *proto.PreVote) (*proto.Ack, error) {
 	ack := &proto.Ack{}
+
+	// convert protoPreVote to preVote
+	preVote := consensus.ConvertProtoPreVote(protoPreVote)
+	preVoteSenderIDStr := hex.EncodeToString(preVote.PubKey.Bytes())
+	blockIDStr := hex.EncodeToString(preVote.BlockID)
+
+	n.logger.Info("Received preVote, validating ...", zap.String("preVoteSenderID", preVoteSenderIDStr), zap.String("blockID", blockIDStr))
+
+	// check that we are in preVote phase
+	if n.consensus.CurrentRound.CurrentPhase.Value() != "preVote" {
+		n.logger.Error("Received preVote, not in preVote phase", zap.String("currentPhase", n.consensus.CurrentRound.CurrentPhase.Value()))
+		return ack, nil
+	}
+
+	// check that preVote sender is a validator
+	if !n.consensus.IsValidator(preVoteSenderIDStr) {
+		n.logger.Error("Received preVote from non validator node", zap.String("preVote sender ID", preVoteSenderIDStr))
+		return ack, nil
+	}
+
+	// check that the preVote is for the correct block
+	if !bytes.Equal(preVote.BlockID, n.consensus.CurrentRound.BlockID) {
+		n.logger.Error("Received preVote for block not being considered this round",
+			zap.String("proposedBlockID", hex.EncodeToString(n.consensus.CurrentRound.BlockID)),
+			zap.String("preVoteBlockID", blockIDStr))
+	}
+
+	// check if we have already seen this preVote from this validator this round
+	ok, err := n.consensus.CurrentRound.CurrentPhase.HasValidatorID(preVoteSenderIDStr)
+	if err != nil {
+		n.logger.Error("Error checking if already seen validator this phase", zap.String("preVote sender ID", preVoteSenderIDStr), zap.Error(err))
+		return ack, nil
+	}
+	if ok {
+		n.logger.Error("Already received preVote from this validator this phase", zap.String("preVote sender ID", preVoteSenderIDStr))
+		return ack, nil
+	} else {
+		err = n.consensus.CurrentRound.CurrentPhase.AddValidatorID(preVoteSenderIDStr)
+		if err != nil {
+			n.logger.Error("Error adding validator", zap.String("preVote sender ID", preVoteSenderIDStr), zap.Error(err))
+			return ack, nil
+		}
+	}
+
+	// verify preVote signature
+	if !preVote.Sig.Verify(preVote.PubKey, preVote.BlockID) {
+		n.logger.Error("PreVote contains invalid signature", zap.String("preVote sender ID", preVoteSenderIDStr))
+		return ack, nil
+	}
+
+	n.logger.Info("Successfully validated preVote, broadcasting ...", zap.String("preVote sender ID", preVoteSenderIDStr))
+
+	// broadcast valid preVote
+	err = n.broadcastPreVote(protoPreVote)
+	if err != nil {
+		n.logger.Error("Error broadcasting preVote", zap.String("preVote sender ID", preVoteSenderIDStr), zap.Error(err))
+	}
+
+	n.logger.Info("Updating phase ...", zap.String("preVote sender ID", preVoteSenderIDStr))
+
+	// add id of new validator
+	err = n.consensus.CurrentRound.CurrentPhase.AddValidatorID(preVoteSenderIDStr)
+	if err != nil {
+		n.logger.Error("Error adding validator", zap.Error(err))
+		return ack, nil
+	}
+	// increment the preVote count
+	err = n.consensus.CurrentRound.CurrentPhase.IncrementAttestationCount()
+	if err != nil {
+		n.logger.Error("Error incrementing attestation count", zap.Error(err))
+	}
+
+	n.logger.Info("Checking if have received required number of preVotes ...")
+
+	threshold := len(n.consensus.Validators) * 2 / 3
+	ok, err = n.consensus.CurrentRound.CurrentPhase.AtAttestationThreshold(threshold)
+	if err != nil {
+		n.logger.Error("Error checking if at attestation threshold", zap.Error(err))
+		return ack, nil
+	}
+	if ok {
+		n.logger.Info("Received required number of preVotes, moving to preCommit phase ...")
+		n.consensus.CurrentRound.NextPhase()
+	}
+
 	return ack, nil
 }
 
-func (n *Node) HandlePreCommit(ctx context.Context, protoCommit *proto.PreCommit) (*proto.Ack, error) {
+func (n *Node) HandlePreCommit(ctx context.Context, protoPreCommit *proto.PreCommit) (*proto.Ack, error) {
 	ack := &proto.Ack{}
 	return ack, nil
 }

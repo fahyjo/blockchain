@@ -4,7 +4,9 @@ import "errors"
 
 type Phase interface {
 	IncrementAttestationCount() error
-	AddValidator(validatorID string) error
+	AtAttestationThreshold(threshold int) (bool, error)
+	AddValidatorID(validatorID string) error
+	HasValidatorID(validatorID string) (bool, error)
 	Value() string
 }
 
@@ -16,65 +18,21 @@ func NewProposalPhase() Phase {
 }
 
 func (p *ProposalPhase) IncrementAttestationCount() error {
-	return errors.New("invoked IncrementAttestationCount method on ProposalPhase Phase")
+	return errors.New("invoked IncrementAttestationCount method during proposal phase")
 }
 
-func (p *ProposalPhase) AddValidator(validatorID string) error {
-	return errors.New("invoked AddValidator method on ProposalPhase Phase")
+func (p *ProposalPhase) AtAttestationThreshold(threshold int) (bool, error) {
+	return false, errors.New("invoked AtAttestationThreshold method during proposal phase")
+}
+
+func (p *ProposalPhase) AddValidatorID(validatorID string) error {
+	return errors.New("invoked AddValidator method during proposal phase")
+}
+
+func (p *ProposalPhase) HasValidatorID(validatorID string) (bool, error) {
+	return false, errors.New("invoked HasValidatorID method during proposal phase")
 }
 
 func (p *ProposalPhase) Value() string {
 	return "proposal"
-}
-
-type PreVotePhase struct {
-	PreVotes     int
-	ValidatorIDs map[string]bool
-}
-
-func NewPreVotePhase() Phase {
-	return &PreVotePhase{
-		PreVotes:     0,
-		ValidatorIDs: make(map[string]bool, 10),
-	}
-}
-
-func (p *PreVotePhase) IncrementAttestationCount() error {
-	p.PreVotes++
-	return nil
-}
-
-func (p *PreVotePhase) AddValidator(validatorID string) error {
-	p.ValidatorIDs[validatorID] = true
-	return nil
-}
-
-func (p *PreVotePhase) Value() string {
-	return "preVote"
-}
-
-type PreCommitPhase struct {
-	PreCommits   int
-	ValidatorIDs map[string]bool
-}
-
-func NewPreCommitPhase() Phase {
-	return &PreCommitPhase{
-		PreCommits:   0,
-		ValidatorIDs: make(map[string]bool, 10),
-	}
-}
-
-func (p *PreCommitPhase) IncrementAttestationCount() error {
-	p.PreCommits++
-	return nil
-}
-
-func (p *PreCommitPhase) AddValidator(validatorID string) error {
-	p.ValidatorIDs[validatorID] = true
-	return nil
-}
-
-func (p *PreCommitPhase) Value() string {
-	return "preCommit"
 }
