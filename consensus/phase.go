@@ -29,13 +29,13 @@ func (p *ProposalPhase) Value() string {
 
 type PreVotePhase struct {
 	PreVotes     int
-	ValidatorIDs []string
+	ValidatorIDs map[string]bool
 }
 
 func NewPreVotePhase() Phase {
 	return &PreVotePhase{
 		PreVotes:     0,
-		ValidatorIDs: make([]string, 10),
+		ValidatorIDs: make(map[string]bool, 10),
 	}
 }
 
@@ -45,7 +45,7 @@ func (p *PreVotePhase) IncrementAttestationCount() error {
 }
 
 func (p *PreVotePhase) AddValidator(validatorID string) error {
-	p.ValidatorIDs = append(p.ValidatorIDs, validatorID)
+	p.ValidatorIDs[validatorID] = true
 	return nil
 }
 
@@ -55,13 +55,13 @@ func (p *PreVotePhase) Value() string {
 
 type PreCommitPhase struct {
 	PreCommits   int
-	ValidatorIDs []string
+	ValidatorIDs map[string]bool
 }
 
 func NewPreCommitPhase() Phase {
 	return &PreCommitPhase{
 		PreCommits:   0,
-		ValidatorIDs: make([]string, 10),
+		ValidatorIDs: make(map[string]bool, 10),
 	}
 }
 
@@ -71,7 +71,7 @@ func (p *PreCommitPhase) IncrementAttestationCount() error {
 }
 
 func (p *PreCommitPhase) AddValidator(validatorID string) error {
-	p.ValidatorIDs = append(p.ValidatorIDs, validatorID)
+	p.ValidatorIDs[validatorID] = true
 	return nil
 }
 

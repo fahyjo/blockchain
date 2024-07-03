@@ -103,6 +103,7 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 
 	// check that we are in the proposal phase
 	if n.consensus.CurrentRound.CurrentPhase.Value() != "proposal" {
+		n.logger.Error("Received block, not in proposal phase", zap.String("currentPhase", n.consensus.CurrentRound.CurrentPhase.Value()))
 		return ack, nil
 	}
 
@@ -118,6 +119,7 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 	// check if already seen this block
 	ok := n.BlockCache.Has(blockID)
 	if ok {
+		n.logger.Error("Received block already in cache", zap.String("blockID", blockIDStr))
 		return ack, nil
 	} else {
 		n.BlockCache.Put(blockID, true)
@@ -139,14 +141,14 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 		n.logger.Error("Error broadcasting block", zap.String("blockID", blockIDStr), zap.Error(err))
 	}
 
-	n.logger.Info("Successfully broadcasted block, moving to preVote phase ...", zap.String("blockID", blockIDStr))
+	n.logger.Info("Broadcasted block, moving to preVote phase ...", zap.String("blockID", blockIDStr))
 
 	// move to preVote phase
 	n.consensus.CurrentRound.BlockID = blockID
 	n.consensus.CurrentRound.Block = block
 	n.consensus.CurrentRound.NextPhase()
 
-	// broadcast preVote
+	// broadcast preVote if validator
 	if n.consensus.AmValidator {
 		err = n.broadcastPreVote(blockID, true)
 		if err != nil {
@@ -162,7 +164,7 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 		}
 	}
 
-	n.logger.Info("Successfully broadcasted preVote", zap.String("blockID", blockIDStr))
+	n.logger.Info("Broadcasted preVote", zap.String("blockID", blockIDStr))
 
 	return ack, nil
 }
