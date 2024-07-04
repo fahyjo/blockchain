@@ -40,6 +40,7 @@ func NewNode(
 	listenAddr string,
 	height int64,
 	keys *crypto.Keys,
+	consensus *consensus.Consensus,
 	cache *Cache,
 	store *Store,
 	blockList *blocks.BlockList,
@@ -49,6 +50,7 @@ func NewNode(
 		ListenAddr: listenAddr,
 		Height:     height,
 		Keys:       keys,
+		consensus:  consensus,
 		Cache:      cache,
 		Store:      store,
 		BlockList:  blockList,
@@ -436,45 +438,137 @@ func (n *Node) HandlePreCommit(ctx context.Context, protoPreCommit *proto.PreCom
 
 	n.logger.Info("Received required number of preCommits, committing block ...", zap.String("blockID", blockIDStr))
 
+	ok = n.commitBlock(n.consensus.CurrentRound.Block, n.consensus.CurrentRound.BlockID)
+
+	// clean mempool
+
+	if !ok {
+		panic("Block commit failed, state fucked")
+	}
+
+	// move to next round
+	n.consensus.NextRound()
+
 	return ack, nil
 }
 
 func (n *Node) commitBlock(block *blocks.Block, blockID []byte) bool {
-	// remove transactions from mempool
-	// update utxo store
-	// clean mempool
-	// start next round
+	// add block to block store
 	err := n.BlockStore.Put(n.consensus.CurrentRound.Block)
 	if err != nil {
 		n.logger.Error("Error adding block to block store", zap.Error(err))
 		return false
 	}
 
+	// add block to block list
 	err = n.BlockList.Add(blockID)
 	if err != nil {
-		n.logger.Error("Error adding block to block list, removing block from block store ...", zap.Error(err))
-		err = n.BlockStore.Delete(blockID)
+		n.logger.Error("Error adding block to block list, walking back block commit ...", zap.Error(err))
+		err = n.walkBackCommit(blockID, nil, nil, nil, nil)
 		if err != nil {
-			n.logger.Error("Error removing block from block store", zap.Error(err))
+			n.logger.Error("Error walking back block commit", zap.Error(err))
+			return false
 		}
 		return false
 	}
 
+	var committedTXs [][]byte
+	var consumedUTXOs map[string]*utxos.UTXO
+	var producedUTXOs [][]byte
 	for _, tx := range block.Transactions {
-		err = n.TransactionStore.Put(tx)
+		txID, err := tx.Hash()
 		if err != nil {
-			n.logger.Error("Error adding transaction to transaction store, removing block from block store and removing block from block list", zap.Error(err))
-			err = n.BlockStore.Delete(blockID)
+			n.logger.Error("Error hashing transaction, walking back block commit ...", zap.Error(err))
+			err = n.walkBackCommit(blockID, blockID, committedTXs, consumedUTXOs, producedUTXOs)
 			if err != nil {
-				n.logger.Error("Error removing block from block store", zap.Error(err))
-			}
-			err = n.BlockList.Delete(blockID)
-			if err != nil {
-				n.logger.Error("Error removing block from block list", zap.Error(err))
+				n.logger.Error("Error walking back block commit", zap.Error(err))
+				return false
 			}
 			return false
 		}
+		// add transactions to transaction store
+		err = n.TransactionStore.Put(tx)
+		if err != nil {
+			n.logger.Error("Error adding transaction to transaction store, walking back block commit ...", zap.Error(err))
+			err = n.walkBackCommit(blockID, blockID, committedTXs, consumedUTXOs, producedUTXOs)
+			if err != nil {
+				n.logger.Error("Error walking back block commit", zap.Error(err))
+				return false
+			}
+			return false
+		}
+		committedTXs = append(committedTXs, txID)
+
+		// remove consumed utxos from utxo store
+		for _, input := range tx.Inputs {
+			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
+			utxo, err := n.UtxoStore.Delete(utxoID)
+			if err != nil {
+				n.logger.Error("Error removing consumed utxo from utxo store, walking back block commit ...", zap.Error(err))
+				err = n.walkBackCommit(blockID, blockID, committedTXs, consumedUTXOs, producedUTXOs)
+				if err != nil {
+					n.logger.Error("Error walking back block commit", zap.Error(err))
+					return false
+				}
+				return false
+			}
+			consumedUTXOs[hex.EncodeToString(utxoID)] = utxo
+		}
+		// add produced utxos to utxo store
+		for i, output := range tx.Outputs {
+			utxoID := utxos.CreateUTXOID(txID, int64(i))
+			utxo := utxos.NewUTXO(output.Amount, output.LockingScript)
+			err = n.UtxoStore.Put(utxoID, utxo)
+			if err != nil {
+				n.logger.Error("Error adding produced utxo to utxo store, walking back block commit ...", zap.Error(err))
+				err = n.walkBackCommit(blockID, blockID, committedTXs, consumedUTXOs, producedUTXOs)
+				if err != nil {
+					n.logger.Error("Error walking back block commit", zap.Error(err))
+					return false
+				}
+				return false
+			}
+			producedUTXOs = append(producedUTXOs, utxoID)
+		}
 	}
+}
+
+func (n *Node) walkBackCommit(blockIDStore []byte, blockIDList []byte, txIDs [][]byte, consumedUTXOs map[string]*utxos.UTXO, producedUTXOs [][]byte) error {
+	if blockIDStore != nil {
+		err := n.BlockStore.Delete(blockIDStore)
+		if err != nil {
+			return err
+		}
+	}
+	if blockIDList != nil {
+		err := n.BlockList.Delete(blockIDList)
+		if err != nil {
+			return err
+		}
+	}
+	for _, txID := range txIDs {
+		err := n.TransactionStore.Delete(txID)
+		if err != nil {
+			return err
+		}
+	}
+	for utxoIDStr, utxo := range consumedUTXOs {
+		utxoID, err := hex.DecodeString(utxoIDStr)
+		if err != nil {
+			return err
+		}
+		err = n.UtxoStore.Put(utxoID, utxo)
+		if err != nil {
+			return err
+		}
+	}
+	for _, utxoID := range producedUTXOs {
+		_, err := n.UtxoStore.Delete(utxoID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction) (*proto.Ack, error) {

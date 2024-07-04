@@ -1,7 +1,7 @@
 {
   "1": {
     "network": {
-      "listenAddr": ":3000",
+      "listenAddr": ":3001",
       "peers": []
     },
     "store": {
@@ -10,33 +10,308 @@
       "utxo": "db/1/utxo"
     },
     "crypto": {
-      "publicKey": "",
-      "privateKey": ""
+      "publicKey": "848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b",
+      "privateKey": "69c8cade24504b9bb6b6f621cb6934d44f9631e9d32432101618f184fa53722f848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b"
     },
     "consensus": {
-      "validators": []
+      "amValidator": true,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
     }
   },
   "2": {
     "network": {
-      "listenAddr": ":4000",
-      "peers": [":3000"]
+      "listenAddr": ":30002",
+      "peers": [":3001"]
     },
     "store": {
       "block": "db/2/block",
       "transaction": "db/2/transaction",
       "utxo": "db/2/utxo"
+    },
+    "crypto": {
+      "publicKey": "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+      "privateKey": "0504eacd0d88dd6b8d1fbd2d8ad454c1693da70e9584d39677988619442a7976eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2"
+    },
+    "consensus": {
+      "amValidator": true,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
     }
   },
   "3": {
     "network": {
-      "listenAddr": ":5000",
-      "peers": [":4000"]
+      "listenAddr": ":3003",
+      "peers": [":3002"]
     },
     "store": {
       "block": "db/3/block",
       "transaction": "db/3/transaction",
       "utxo": "db/3/utxo"
+    },
+    "crypto": {
+      "publicKey": "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec",
+      "privateKey": "adcde58a4b5dcd2d72fde04df1355c10e5a54558f46c8fe7ea7eea4b1d141f327249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec"
+    },
+    "consensus": {
+      "amValidator": true,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "4": {
+    "network": {
+      "listenAddr": ":3004",
+      "peers": [":3003"]
+    },
+    "store": {
+      "block": "db/4/block",
+      "transaction": "db/4/transaction",
+      "utxo": "db/4/utxo"
+    },
+    "crypto": {
+      "publicKey": "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+      "privateKey": "8c1c5fef4ec361432d3f078264161da11433c44f089f69ad937fbba5261eddf5d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7"
+    },
+    "consensus": {
+      "amValidator": true,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "5": {
+    "network": {
+      "listenAddr": ":3005",
+      "peers": [":3004"]
+    },
+    "store": {
+      "block": "db/5/block",
+      "transaction": "db/5/transaction",
+      "utxo": "db/5/utxo"
+    },
+    "crypto": {
+      "publicKey": "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c",
+      "privateKey": "f1a9866c7136001ce3587017c4b4a1787a8cf3534eefc435a402ba94cb203b83088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c"
+    },
+    "consensus": {
+      "amValidator": true,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "6": {
+    "network": {
+      "listenAddr": ":3006",
+      "peers": [":3005"]
+    },
+    "store": {
+      "block": "db/6/block",
+      "transaction": "db/6/transaction",
+      "utxo": "db/6/utxo"
+    },
+    "crypto": {
+      "publicKey": "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8",
+      "privateKey": "d838f5c5823bd1e5b2327479dc20c7f4fc8a8453db013523b838484bf2d9414556fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"
+    },
+    "consensus": {
+      "amValidator": true,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "7": {
+    "network": {
+      "listenAddr": ":3007",
+      "peers": [":3006"]
+    },
+    "store": {
+      "block": "db/7/block",
+      "transaction": "db/7/transaction",
+      "utxo": "db/7/utxo"
+    },
+    "crypto": {
+      "publicKey": "f02b4378f26364852e144d1d19d93a791bc091fb21db5124eb2a04a78f8ef9a1",
+      "privateKey": "7db388fb864a5ed46ccbb9c934b2f3cb4ad72bee2e80a4583c706c54e059e832f02b4378f26364852e144d1d19d93a791bc091fb21db5124eb2a04a78f8ef9a1"
+    },
+    "consensus": {
+      "amValidator": false,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "8": {
+    "network": {
+      "listenAddr": ":3008",
+      "peers": [":3007"]
+    },
+    "store": {
+      "block": "db/8/block",
+      "transaction": "db/8/transaction",
+      "utxo": "db/8/utxo"
+    },
+    "crypto": {
+      "publicKey": "52982d7111f9ade18de2e0fcc72ba110922ef38cb733c1a4ab4a99229b632c5e",
+      "privateKey": "525cf58ab1144fa5131cfaad8fcc582aa8a7b0b4cc1934869fdada1b0423f10c52982d7111f9ade18de2e0fcc72ba110922ef38cb733c1a4ab4a99229b632c5e"
+    },
+    "consensus": {
+      "amValidator": false,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "9": {
+    "network": {
+      "listenAddr": ":3009",
+      "peers": [":3008"]
+    },
+    "store": {
+      "block": "db/9/block",
+      "transaction": "db/9/transaction",
+      "utxo": "db/9/utxo"
+    },
+    "crypto": {
+      "publicKey": "224a20a269d3815c8b8389834e00c342dcca3a219929181d39b58224d9036f72",
+      "privateKey": "97b45325f4619183cfc1c2a35bab74b115742d5ab3583985e4df311cfb8b89c8224a20a269d3815c8b8389834e00c342dcca3a219929181d39b58224d9036f72"
+    },
+    "consensus": {
+      "amValidator": false,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "10": {
+    "network": {
+      "listenAddr": ":3010",
+      "peers": [":3009"]
+    },
+    "store": {
+      "block": "db/10/block",
+      "transaction": "db/10/transaction",
+      "utxo": "db/10/utxo"
+    },
+    "crypto": {
+      "publicKey": "e32ae2c5585a440f7c160adcc3df9bc47486c029cfa1f5527e689262a8f76821",
+      "privateKey": "123b73fafdece91e7ad21c05fef67755278977009a6af4d6fb22f49b306950d6e32ae2c5585a440f7c160adcc3df9bc47486c029cfa1f5527e689262a8f76821"
+    },
+    "consensus": {
+      "amValidator": false,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "11": {
+    "network": {
+      "listenAddr": ":3011",
+      "peers": [":3010"]
+    },
+    "store": {
+      "block": "db/11/block",
+      "transaction": "db/11/transaction",
+      "utxo": "db/11/utxo"
+    },
+    "crypto": {
+      "publicKey": "0f08500048eaae1751b5867b011b6cea2f1271546863bb255bfeaaea38810f95",
+      "privateKey": "675463b217099a349046c2e64afbbf3c2a7e7ae56c101c7add795efa6a196c750f08500048eaae1751b5867b011b6cea2f1271546863bb255bfeaaea38810f95"
+    },
+    "consensus": {
+      "amValidator": false,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "12": {
+    "network": {
+      "listenAddr": ":3012",
+      "peers": [":3011"]
+    },
+    "store": {
+      "block": "db/12/block",
+      "transaction": "db/12/transaction",
+      "utxo": "db/12/utxo"
+    },
+    "crypto": {
+      "publicKey": "c6eba78cf13897f8227f25f8a39f5d1af0d0e58df77e6b17b1cd639eb88a0d23",
+      "privateKey": "c2c99a059c1304dbd49140f0a6a0d8e97a2df83227f9c908e01a3d1cebb78718c6eba78cf13897f8227f25f8a39f5d1af0d0e58df77e6b17b1cd639eb88a0d23"
+    },
+    "consensus": {
+      "amValidator": false,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "13": {
+    "network": {
+      "listenAddr": ":3013",
+      "peers": [":3012"]
+    },
+    "store": {
+      "block": "db/13/block",
+      "transaction": "db/13/transaction",
+      "utxo": "db/13/utxo"
+    },
+    "crypto": {
+      "publicKey": "be0334796094b7b33a306039873b477d6d6e8e0adc73c67e15ca8b440fff5bdf",
+      "privateKey": "bc95c189ca85f5d9be7569ad9d9d847ffb2c6cfd64fd6ccc99c98e8b305bbea4be0334796094b7b33a306039873b477d6d6e8e0adc73c67e15ca8b440fff5bdf"
+    },
+    "consensus": {
+      "amValidator": false,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "14": {
+    "network": {
+      "listenAddr": ":3014",
+      "peers": [":3013"]
+    },
+    "store": {
+      "block": "db/14/block",
+      "transaction": "db/14/transaction",
+      "utxo": "db/14/utxo"
+    },
+    "crypto": {
+      "publicKey": "775fb6031b751dcf513cb9ec32cd42e21c72d2530aa6c9c01e84e4fd2bcba954",
+      "privateKey": "223d044e7d1f057ad62fd6791f5ba0c100ecec451f37a1d360a5cd54d27879f3775fb6031b751dcf513cb9ec32cd42e21c72d2530aa6c9c01e84e4fd2bcba954"
+    },
+    "consensus": {
+      "amValidator": false,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
+    }
+  },
+  "15": {
+    "network": {
+      "listenAddr": ":3015",
+      "peers": [":3014"]
+    },
+    "store": {
+      "block": "db/15/block",
+      "transaction": "db/15/transaction",
+      "utxo": "db/15/utxo"
+    },
+    "crypto": {
+      "publicKey": "8105d7b7cc196d451880e237fc902911daac37ed560baf6a150647468b4f137c",
+      "privateKey": "c6e3393752a5967ac149933a559684754392fec638850a2e5ff105f1c4a838cd8105d7b7cc196d451880e237fc902911daac37ed560baf6a150647468b4f137c"
+    },
+    "consensus": {
+      "amValidator": false,
+      "validators": ["848f60ac08211f362a0961e8bd411f08f2bf04227727bd2955ecb6abc3f8946b", "eb2216777679444462bb3e244985b3001f79a2bdcc1f2f7bcfd7bef39b380ce2",
+        "7249f8bab2ad91c019b6041a6f11791c1f554470e8f81c91bb780322ab7dc5ec", "d4c9c00b99dad7f4687b370301d4eeafda8feaae6cb71e870b1184e4a87be3e7",
+        "088907b6a32cf9f60b6ddc24704f4f0351c037912fa80a1eabc9bc5a80c3852c", "56fac6697fdb14c50e08f3585a1fcb9ac52517032babf10ea2e4923fa827b4d8"]
     }
   }
 }

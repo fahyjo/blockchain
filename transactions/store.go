@@ -10,6 +10,7 @@ import (
 type TransactionStore interface {
 	Get([]byte) (*Transaction, error)
 	Put(*Transaction) error
+	Delete([]byte) error
 }
 
 type MemoryTransactionStore struct {
@@ -38,6 +39,16 @@ func (s *MemoryTransactionStore) Put(tx *Transaction) error {
 	}
 	txIDStr := hex.EncodeToString(txID)
 	s.db[txIDStr] = tx
+	return nil
+}
+
+func (s *MemoryTransactionStore) Delete(txID []byte) error {
+	txIDStr := hex.EncodeToString(txID)
+	_, ok := s.db[txIDStr]
+	if !ok {
+		return fmt.Errorf("transaction not found not found: %s", txIDStr)
+	}
+	delete(s.db, txIDStr)
 	return nil
 }
 
@@ -83,5 +94,20 @@ func (s *LevelsTransactionStore) Put(tx *Transaction) error {
 		return err
 	}
 
+	return nil
+}
+
+func (s *LevelsTransactionStore) Delete(txID []byte) error {
+	b, err := s.db.Has(txID, nil)
+	if err != nil {
+		return err
+	}
+	if !b {
+		return fmt.Errorf("error deleting tx from tx store: tx %s not found", hex.EncodeToString(txID))
+	}
+	err = s.db.Delete(txID, nil)
+	if err != nil {
+		return err
+	}
 	return nil
 }

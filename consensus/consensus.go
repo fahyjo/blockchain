@@ -24,6 +24,6 @@ func (c *Consensus) IsValidator(validatorID string) bool {
 
 func (c *Consensus) NextRound() {
 	c.roundNumber++
-	proposerID := c.Validators[c.roundNumber]
+	proposerID := c.Validators[c.roundNumber%len(c.Validators)]
 	c.CurrentRound = NewRound(proposerID)
 }

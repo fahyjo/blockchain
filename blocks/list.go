@@ -54,5 +54,5 @@ func (l *BlockList) Delete(blockID []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("error deleting blockID from block list: %s", blockIDStr)
+	return fmt.Errorf("error deleting block from block list: block %s not found", blockIDStr)
 }

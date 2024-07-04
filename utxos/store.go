@@ -10,6 +10,7 @@ import (
 type UTXOStore interface {
 	Get([]byte) (*UTXO, error)
 	Put([]byte, *UTXO) error
+	Delete([]byte) (*UTXO, error)
 }
 
 type MemoryUTXOStore struct {
@@ -35,6 +36,16 @@ func (s *MemoryUTXOStore) Put(utxoID []byte, utxo *UTXO) error {
 	utxoIDStr := hex.EncodeToString(utxoID)
 	s.db[utxoIDStr] = utxo
 	return nil
+}
+
+func (s *MemoryUTXOStore) Delete(utxoID []byte) (*UTXO, error) {
+	utxoIDStr := hex.EncodeToString(utxoID)
+	utxo, ok := s.db[utxoIDStr]
+	if !ok {
+		return nil, fmt.Errorf("utxo not found: %s", utxoIDStr)
+	}
+	delete(s.db, utxoIDStr)
+	return utxo, nil
 }
 
 type LevelsUTXOStore struct {
@@ -75,4 +86,16 @@ func (s *LevelsUTXOStore) Put(utxoID []byte, utxo *UTXO) error {
 	}
 
 	return nil
+}
+
+func (s *LevelsUTXOStore) Delete(utxoID []byte) (*UTXO, error) {
+	utxo, err := s.Get(utxoID)
+	if err != nil {
+		return nil, fmt.Errorf("error deleting from utxo store: utxo %s not found", hex.EncodeToString(utxoID))
+	}
+	err = s.db.Delete(utxoID, nil)
+	if err != nil {
+		return nil, err
+	}
+	return utxo, err
 }

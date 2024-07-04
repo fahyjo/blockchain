@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"os"
 
 	"github.com/fahyjo/blockchain/blocks"
 	c "github.com/fahyjo/blockchain/config"
+	"github.com/fahyjo/blockchain/consensus"
 	"github.com/fahyjo/blockchain/crypto"
 	n "github.com/fahyjo/blockchain/node"
 	"github.com/fahyjo/blockchain/peer"
@@ -15,15 +17,18 @@ import (
 )
 
 func main() {
+	// make logger
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
+	// open json config file
 	configFile, err := os.Open("config/config.json")
 	if err != nil {
 		logger.Fatal("Failed to read config.json", zap.Error(err))
 	}
 	defer configFile.Close()
 
+	// parse json config file
 	var config map[string]c.Config
 	decoder := json.NewDecoder(configFile)
 	err = decoder.Decode(&config)
@@ -33,16 +38,35 @@ func main() {
 
 	nodeIDStr := os.Args[1]
 
-	listenAddr := config[nodeIDStr].ListenAddr
-	peerAddrs := config[nodeIDStr].Peers
+	// network config
+	networkConfig := config[nodeIDStr].Network
+	listenAddr := networkConfig.ListenAddr
+	peerAddrs := networkConfig.Peers
 
-	_, err = crypto.NewPrivateKey()
+	// crypto config
+	cryptoConfig := config[nodeIDStr].Crypto
+	pubKeyStr := cryptoConfig.PublicKey
+	pubKeyBytes, err := hex.DecodeString(pubKeyStr)
 	if err != nil {
-		logger.Fatal("Failed to generate private key", zap.Error(err))
+		logger.Fatal("Failed to decode public key", zap.Error(err))
 	}
-	_ = crypto.NewPublicKey(nil)
-	keys := crypto.NewKeys(nil, nil)
+	pubKey := crypto.NewPublicKey(pubKeyBytes)
+	privKeyStr := cryptoConfig.PrivateKey
+	privKeyBytes, err := hex.DecodeString(privKeyStr)
+	if err != nil {
+		logger.Fatal("Failed to decode private key", zap.Error(err))
+	}
+	privKey := crypto.NewPrivateKey(privKeyBytes)
+	keys := crypto.NewKeys(privKey, pubKey)
 
+	// consensus config
+	consensusConfig := config[nodeIDStr].Consensus
+	amValidator := consensusConfig.AmValidator
+	validators := consensusConfig.Validators
+	round := consensus.NewRound(validators[0])
+	consensus := consensus.NewConsensus(amValidator, validators, 0, round)
+
+	// make caches
 	var (
 		peerCache         = peer.NewPeerCache()
 		blockCache        = blocks.NewBlockCache()
@@ -50,6 +74,7 @@ func main() {
 		cache             = n.NewCache(peerCache, blockCache, transactionsCache)
 	)
 
+	// make stores
 	var (
 		blockStore       = blocks.NewMemoryBlockStore()
 		transactionStore = transactions.NewMemoryTransactionStore()
@@ -57,10 +82,12 @@ func main() {
 		store            = n.NewStore(blockStore, transactionStore, utxoStore)
 	)
 
+	// make blocklist and mempool
 	blockList := blocks.NewBlockList()
 	mempool := transactions.NewMempool()
 
-	node := n.NewNode(listenAddr, 0, keys, cache, store, blockList, mempool, logger)
+	// make and start node
+	node := n.NewNode(listenAddr, 0, keys, consensus, cache, store, blockList, mempool, logger)
 	err = node.Start(peerAddrs)
 	if err != nil {
 		logger.Fatal("Failed to start node", zap.Error(err))

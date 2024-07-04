@@ -101,7 +101,7 @@ func (s *LevelsBlockStore) Delete(blockID []byte) error {
 		return err
 	}
 	if !b {
-		return fmt.Errorf("block not found: %s", blockID)
+		return fmt.Errorf("error deleting block from block store: block %s not found", hex.EncodeToString(blockID))
 	}
 	err = s.db.Delete(blockID, nil)
 	if err != nil {
