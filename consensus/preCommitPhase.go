@@ -1,5 +1,10 @@
 package consensus
 
+import (
+	"github.com/fahyjo/blockchain/crypto"
+	proto "github.com/fahyjo/blockchain/proto"
+)
+
 type PreCommitPhase struct {
 	PreCommits   int
 	ValidatorIDs map[string]bool
@@ -33,4 +38,26 @@ func (p *PreCommitPhase) HasValidatorID(validatorID string) (bool, error) {
 
 func (p *PreCommitPhase) Value() string {
 	return "preCommit"
+}
+
+type PreCommit struct {
+	BlockID []byte
+	Sig     *crypto.Signature
+	PubKey  *crypto.PublicKey
+}
+
+func NewPreCommit(blockID []byte, sig *crypto.Signature, pub *crypto.PublicKey) *PreCommit {
+	return &PreCommit{
+		BlockID: blockID,
+		Sig:     sig,
+		PubKey:  pub,
+	}
+}
+
+func ConvertProtoPreCommit(protoPreCommit *proto.PreCommit) *PreCommit {
+	return NewPreCommit(
+		protoPreCommit.BlockID,
+		crypto.NewSignature(protoPreCommit.Sig),
+		crypto.NewPublicKey(protoPreCommit.PubKey),
+	)
 }

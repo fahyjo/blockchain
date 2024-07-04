@@ -10,10 +10,21 @@ import (
 type BlockStore interface {
 	Get([]byte) (*Block, error)
 	Put(*Block) error
+	Delete([]byte) error
 }
 
 type MemoryBlockStore struct {
 	db map[string]*Block
+}
+
+func (s *MemoryBlockStore) Delete(blockID []byte) error {
+	blockIDStr := hex.EncodeToString(blockID)
+	_, ok := s.db[blockIDStr]
+	if !ok {
+		return fmt.Errorf("block not found: %s", blockIDStr)
+	}
+	delete(s.db, blockIDStr)
+	return nil
 }
 
 func NewMemoryBlockStore() BlockStore {
@@ -81,5 +92,20 @@ func (s *LevelsBlockStore) Put(b *Block) error {
 		return err
 	}
 
+	return nil
+}
+
+func (s *LevelsBlockStore) Delete(blockID []byte) error {
+	b, err := s.db.Has(blockID, nil)
+	if err != nil {
+		return err
+	}
+	if !b {
+		return fmt.Errorf("block not found: %s", blockID)
+	}
+	err = s.db.Delete(blockID, nil)
+	if err != nil {
+		return err
+	}
 	return nil
 }

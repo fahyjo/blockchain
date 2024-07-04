@@ -57,9 +57,10 @@ func main() {
 		store            = n.NewStore(blockStore, transactionStore, utxoStore)
 	)
 
+	blockList := blocks.NewBlockList()
 	mempool := transactions.NewMempool()
 
-	node := n.NewNode(listenAddr, 0, keys, cache, store, mempool, logger)
+	node := n.NewNode(listenAddr, 0, keys, cache, store, blockList, mempool, logger)
 	err = node.Start(peerAddrs)
 	if err != nil {
 		logger.Fatal("Failed to start node", zap.Error(err))

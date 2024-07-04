@@ -70,13 +70,16 @@ Tendermint Protocol BFT PoS
 
 
 NEXT STEPS
-- might be useful to exchange public keys in handshake, refactor peer cache, other caches
+- handle pre commit - commit block
 - block validation
 - transaction validation
     - change mempool check to check that not claimed by someone else (will work for transaction validation in btoh contexts)
-- consensus config
-- triggers
+- consensus, crpyto config
+- code review - refactor, test, document
+- genesis block
+- triggers (new tx, new block, dump stores, mempool, caches ...)
 - testing
+- might be useful to exchange public keys in handshake, refactor peer cache, other caches
 
 Caches
 - transaction cache is good
@@ -95,3 +98,4 @@ Design Decisions
 - validators only broadcast positive pre-vote/pre-commit messages
 
 Problems
+- blockStore.Put
