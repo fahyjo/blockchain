@@ -32,3 +32,28 @@ func (block *Block) Hash() ([]byte, error) {
 	hash := sha256.Sum256(b)
 	return hash[:], nil
 }
+
+func (block *Block) CalculateMerkleRoot() ([]byte, error) {
+	var currLevel [][]byte
+	for _, tx := range block.Transactions {
+		hash, err := tx.Hash()
+		if err != nil {
+			return nil, err
+		}
+		currLevel = append(currLevel, hash)
+	}
+
+	if len(currLevel)%2 != 0 {
+		currLevel = append(currLevel, currLevel[len(currLevel)-1])
+	}
+
+	for len(currLevel) > 1 {
+		var nextLevel [][]byte
+		for i := 0; i < len(currLevel); i += 2 {
+			newHash := sha256.Sum256(append(currLevel[i], currLevel[i+1]...))
+			nextLevel = append(nextLevel, newHash[:])
+		}
+		currLevel = nextLevel
+	}
+	return currLevel[0], nil
+}

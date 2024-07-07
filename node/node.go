@@ -109,7 +109,7 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 
 	// check that we are in the proposal phase
 	if n.consensus.CurrentRound.CurrentPhase.Value() != "proposal" {
-		n.logger.Error("Received block, not in proposal phase", zap.String("currentPhase", n.consensus.CurrentRound.CurrentPhase.Value()))
+		n.logger.Error("Error handling block: received block, not in proposal phase", zap.String("currentPhase", n.consensus.CurrentRound.CurrentPhase.Value()))
 		return ack, nil
 	}
 
@@ -117,7 +117,7 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 	block := blocks.ConvertProtoBlock(protoBlock)
 	blockID, err := block.Hash()
 	if err != nil {
-		n.logger.Error("Error hashing block", zap.Error(err))
+		n.logger.Error("Error handling block: unable to hash block", zap.Error(err))
 		return ack, err
 	}
 	blockIDStr := hex.EncodeToString(blockID)
@@ -125,7 +125,7 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 	// check if already seen this block
 	ok := n.BlockCache.Has(blockID)
 	if ok {
-		n.logger.Error("Received block already in cache", zap.String("blockID", blockIDStr))
+		n.logger.Info("Received block already in cache", zap.String("blockID", blockIDStr))
 		return ack, nil
 	} else {
 		n.BlockCache.Put(blockID, true)
@@ -184,26 +184,75 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 
 func (n *Node) validateBlock(block *blocks.Block, blockID []byte) bool {
 	blockIDStr := hex.EncodeToString(blockID)
+	proposerID := block.PubKey.Bytes()
+	proposerIDStr := hex.EncodeToString(proposerID)
 
-	// check that the creator of the block is the designated proposer for this round
-	if n.consensus.CurrentRound.ProposerID != hex.EncodeToString(block.PubKey.Bytes()) {
-		n.logger.Error("Error validating block, creator of block is not the designated proposer for this round",
+	// check that the block proposer is a validator node
+	if !n.consensus.IsValidator(blockIDStr) {
+		n.logger.Error("Error validating block: block proposer is not a validator node", zap.String("blockID", blockIDStr))
+		return false
+	}
+
+	// check that the block proposer is the designated proposer for this round
+	if n.consensus.CurrentRound.ProposerID != proposerIDStr {
+		n.logger.Error("Error validating block: block proposer is not the designated proposer for this round",
 			zap.String("proposerID", n.consensus.CurrentRound.ProposerID),
-			zap.String("blockCreator", hex.EncodeToString(block.PubKey.Bytes())),
+			zap.String("blockProposerID", proposerIDStr),
 			zap.String("blockID", blockIDStr))
 		return false
 	}
-	// step 1: verify signature
 
-	// step 2: verify hash of merkle tree root
+	// check that the block height is correct
+	chainLength := n.BlockList.Size()
+	if int64(chainLength) != block.Header.Height {
+		n.logger.Error("Error validating block: block height incorrect", zap.String("blockID", blockIDStr), zap.Int("chainLength", chainLength), zap.Int64("blockHeight", block.Header.Height))
+		return false
+	}
 
-	// step 3: validate prev block hash + height
+	// check that the block prev block hash is correct
+	prevBlockID, err := n.BlockList.Get(chainLength - 1)
+	if !bytes.Equal(prevBlockID, block.Header.PrevHash) {
+		n.logger.Error("Error validating block: block contains incorrect previous block hash", zap.String("prevBlockID", hex.EncodeToString(prevBlockID)), zap.String("blockPrevBlockID", hex.EncodeToString(block.Header.PrevHash)))
+		return false
+	}
 
-	// step 4: validate timestamp
+	// verify block signature
+	if !block.Sig.Verify(block.PubKey, blockID) {
+		n.logger.Error("Error validating block: block signature is invalid", zap.String("blockID", blockIDStr))
+		return false
+	}
 
-	// step 5: validate transactions
-	// - double spend (txs gone through, txs in mempool, txs in same block)
-	return false
+	// check that the block contains at least one transaction
+	if len(block.Transactions) == 0 {
+		n.logger.Error("Error validating block: block has no transactions", zap.String("blockID", blockIDStr))
+		return false
+	}
+
+	// check the merkle tree root is correct
+	merkleRoot, err := block.CalculateMerkleRoot()
+	if err != nil {
+		n.logger.Error("Error validating block: unable to calculate merkle root", zap.String("blockID", blockIDStr), zap.Error(err))
+		return false
+	}
+	if !bytes.Equal(block.Header.RootHash, merkleRoot) {
+		n.logger.Error("Error validating block: block contains incorrect merkle tree root", zap.String("blockID", blockIDStr))
+		return false
+	}
+
+	// validate transactions
+	for i, tx := range block.Transactions {
+		txID, err := tx.Hash()
+		if err != nil {
+			n.logger.Error("Error validating block: unable to hash transaction", zap.String("blockID", blockIDStr), zap.Int("txIndex", i), zap.Error(err))
+			return false
+		}
+		ok := n.validateTransaction(tx, txID)
+		if !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (n *Node) broadcastBlock(protoBlock *proto.Block) error {

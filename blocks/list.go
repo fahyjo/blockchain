@@ -1,6 +1,7 @@
 package blocks
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"sync"
@@ -8,13 +9,13 @@ import (
 
 type BlockList struct {
 	lock sync.RWMutex
-	list []string
+	list [][]byte
 }
 
 func NewBlockList() *BlockList {
 	return &BlockList{
 		lock: sync.RWMutex{},
-		list: make([]string, 0, 50),
+		list: make([][]byte, 0, 50),
 	}
 }
 
@@ -22,17 +23,16 @@ func (l *BlockList) Add(blockID []byte) error {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
-	blockIDStr := hex.EncodeToString(blockID)
-	l.list = append(l.list, blockIDStr)
+	l.list = append(l.list, blockID)
 	return nil
 }
 
-func (l *BlockList) Get(index int) (string, error) {
+func (l *BlockList) Get(index int) ([]byte, error) {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
 	if index >= l.Size() || index < 0 {
-		return "", fmt.Errorf("error retrieving blockID from block list, index out of range: %d", index)
+		return nil, fmt.Errorf("error retrieving blockID from block list, index out of range: %d", index)
 	}
 
 	return l.list[index], nil
@@ -46,13 +46,11 @@ func (l *BlockList) Delete(blockID []byte) error {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
-	blockIDStr := hex.EncodeToString(blockID)
-
 	for i, s := range l.list {
-		if s == blockIDStr {
+		if bytes.Equal(s, blockID) {
 			l.list = append(l.list[:i], l.list[i+1:]...)
 			return nil
 		}
 	}
-	return fmt.Errorf("error deleting block from block list: block %s not found", blockIDStr)
+	return fmt.Errorf("error deleting block from block list: block %s not found", hex.EncodeToString(blockID))
 }
