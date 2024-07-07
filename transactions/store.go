@@ -9,7 +9,7 @@ import (
 
 type TransactionStore interface {
 	Get([]byte) (*Transaction, error)
-	Put(*Transaction) error
+	Put([]byte, *Transaction) error
 	Delete([]byte) error
 }
 
@@ -32,11 +32,7 @@ func (s *MemoryTransactionStore) Get(txID []byte) (*Transaction, error) {
 	return tx, nil
 }
 
-func (s *MemoryTransactionStore) Put(tx *Transaction) error {
-	txID, err := tx.Hash()
-	if err != nil {
-		return err
-	}
+func (s *MemoryTransactionStore) Put(txID []byte, tx *Transaction) error {
 	txIDStr := hex.EncodeToString(txID)
 	s.db[txIDStr] = tx
 	return nil
@@ -78,12 +74,7 @@ func (s *LevelsTransactionStore) Get(txID []byte) (*Transaction, error) {
 	return tx, err
 }
 
-func (s *LevelsTransactionStore) Put(tx *Transaction) error {
-	txID, err := tx.Hash()
-	if err != nil {
-		return err
-	}
-
+func (s *LevelsTransactionStore) Put(txID []byte, tx *Transaction) error {
 	b, err := EncodeTransaction(tx)
 	if err != nil {
 		return err

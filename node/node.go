@@ -247,7 +247,7 @@ func (n *Node) HandlePreVote(ctx context.Context, protoPreVote *proto.PreVote) (
 	preVoteSenderIDStr := hex.EncodeToString(preVote.PubKey.Bytes())
 	blockIDStr := hex.EncodeToString(preVote.BlockID)
 
-	n.logger.Info("Received preVote, validating ...", zap.String("preVote sender ID", preVoteSenderIDStr), zap.String("blockID", blockIDStr))
+	n.logger.Info("Received preVote, validating ...", zap.String("preVoteSenderID", preVoteSenderIDStr), zap.String("blockID", blockIDStr))
 
 	// check that we are in preVote phase
 	currentPhase := n.consensus.CurrentRound.CurrentPhase.Value()
@@ -258,18 +258,18 @@ func (n *Node) HandlePreVote(ctx context.Context, protoPreVote *proto.PreVote) (
 
 	// check that preVote sender is a validator
 	if !n.consensus.IsValidator(preVoteSenderIDStr) {
-		n.logger.Error("Received preVote from non validator node", zap.String("preVote sender ID", preVoteSenderIDStr))
+		n.logger.Error("Received preVote from non validator node", zap.String("preVoteSenderID", preVoteSenderIDStr))
 		return ack, nil
 	}
 
 	// check if we have already seen this preVote from this validator this round
 	ok, err := n.consensus.CurrentRound.CurrentPhase.HasValidatorID(preVoteSenderIDStr)
 	if err != nil {
-		n.logger.Error("Error checking if already seen validator this phase", zap.String("preVote sender ID", preVoteSenderIDStr), zap.Error(err))
+		n.logger.Error("Error checking if already seen validator this phase", zap.String("preVoteSenderID", preVoteSenderIDStr), zap.Error(err))
 		return ack, nil
 	}
 	if ok {
-		n.logger.Error("Already received preVote from this validator this phase", zap.String("preVote sender ID", preVoteSenderIDStr))
+		n.logger.Info("Already received preVote from this validator this phase, exiting ...", zap.String("preVote sender ID", preVoteSenderIDStr))
 		return ack, nil
 	}
 
@@ -283,16 +283,16 @@ func (n *Node) HandlePreVote(ctx context.Context, protoPreVote *proto.PreVote) (
 
 	// verify preVote signature
 	if !preVote.Sig.Verify(preVote.PubKey, preVote.BlockID) {
-		n.logger.Error("PreVote contains invalid signature", zap.String("preVote sender ID", preVoteSenderIDStr))
+		n.logger.Error("PreVote contains invalid signature", zap.String("preVoteSenderID", preVoteSenderIDStr))
 		return ack, nil
 	}
 
-	n.logger.Info("Successfully validated preVote, broadcasting ...", zap.String("preVote sender ID", preVoteSenderIDStr))
+	n.logger.Info("Successfully validated preVote, broadcasting preVote ...", zap.String("preVoteSenderID", preVoteSenderIDStr))
 
 	// broadcast valid preVote
 	err = n.broadcastPreVote(protoPreVote)
 	if err != nil {
-		n.logger.Error("Error broadcasting preVote", zap.String("preVote sender ID", preVoteSenderIDStr), zap.Error(err))
+		n.logger.Error("Error broadcasting preVote", zap.String("preVoteSenderID", preVoteSenderIDStr), zap.Error(err))
 	}
 
 	n.logger.Info("Updating phase ...", zap.String("preVote sender ID", preVoteSenderIDStr))
@@ -359,29 +359,29 @@ func (n *Node) HandlePreCommit(ctx context.Context, protoPreCommit *proto.PreCom
 	preCommitSenderIDStr := hex.EncodeToString(preCommit.PubKey.Bytes())
 	blockIDStr := hex.EncodeToString(preCommit.BlockID)
 
-	n.logger.Info("Received preCommit, validating ...", zap.String("preCommit sender ID", preCommitSenderIDStr), zap.String("blockID", blockIDStr))
+	n.logger.Info("Received preCommit, validating ...", zap.String("preCommitSenderID", preCommitSenderIDStr), zap.String("blockID", blockIDStr))
 
 	// check that we are in preCommit phase
 	currentPhase := n.consensus.CurrentRound.CurrentPhase.Value()
 	if currentPhase != "preCommit" {
-		n.logger.Error("Received preCommit, not in preCommit phase", zap.String("preCommit sender ID", preCommitSenderIDStr))
+		n.logger.Error("Received preCommit, not in preCommit phase", zap.String("preCommitSenderID", preCommitSenderIDStr), zap.String("blockID", blockIDStr))
 		return ack, nil
 	}
 
 	// check that the preCommit sender is a validator
 	if !n.consensus.IsValidator(preCommitSenderIDStr) {
-		n.logger.Error("Received preCommit from non validator node", zap.String("preCommit sender ID", preCommitSenderIDStr))
+		n.logger.Error("Received preCommit from non validator node", zap.String("preCommitSenderID", preCommitSenderIDStr))
 		return ack, nil
 	}
 
 	// check if we have already seen this preCommit from this validator this round
 	ok, err := n.consensus.CurrentRound.CurrentPhase.HasValidatorID(preCommitSenderIDStr)
 	if err != nil {
-		n.logger.Error("Error checking if already seen validator this phase", zap.String("preCommit sender ID", preCommitSenderIDStr), zap.Error(err))
+		n.logger.Error("Error checking if already seen validator this phase", zap.String("preCommitSenderID", preCommitSenderIDStr), zap.Error(err))
 		return ack, nil
 	}
 	if ok {
-		n.logger.Error("Already received preCommit from this validator this phase", zap.String("preCommit sender ID", preCommitSenderIDStr))
+		n.logger.Info("Already received preCommit from this validator this phase, exiting ...", zap.String("preCommitSenderID", preCommitSenderIDStr))
 		return ack, nil
 	}
 
@@ -395,11 +395,11 @@ func (n *Node) HandlePreCommit(ctx context.Context, protoPreCommit *proto.PreCom
 
 	// verify preCommit signature
 	if !preCommit.Sig.Verify(preCommit.PubKey, preCommit.BlockID) {
-		n.logger.Error("PreCommit contains invalid signature", zap.String("preCommit sender ID", preCommitSenderIDStr))
+		n.logger.Error("PreCommit contains invalid signature", zap.String("preCommitSenderID", preCommitSenderIDStr), zap.String("blockID", blockIDStr))
 		return ack, nil
 	}
 
-	n.logger.Info("Successfully validated preCommit, broadcasting ...", zap.String("preCommit sender ID", preCommitSenderIDStr))
+	n.logger.Info("Successfully validated preCommit, broadcasting ...", zap.String("preCommitSenderID", preCommitSenderIDStr), zap.String("blockID", blockIDStr))
 
 	// broadcast valid preCommit
 	err = n.broadcastPreCommit(protoPreCommit)
@@ -407,7 +407,7 @@ func (n *Node) HandlePreCommit(ctx context.Context, protoPreCommit *proto.PreCom
 		n.logger.Error("Error broadcasting preCommit", zap.String("preCommit sender ID", preCommitSenderIDStr), zap.Error(err))
 	}
 
-	n.logger.Info("Updating phase ...", zap.String("preCommit sender ID", preCommitSenderIDStr))
+	n.logger.Info("Updating phase ...")
 
 	// add id of new validator
 	err = n.consensus.CurrentRound.CurrentPhase.AddValidatorID(preCommitSenderIDStr)
@@ -438,63 +438,102 @@ func (n *Node) HandlePreCommit(ctx context.Context, protoPreCommit *proto.PreCom
 
 	n.logger.Info("Received required number of preCommits, committing block ...", zap.String("blockID", blockIDStr))
 
-	ok = n.commitBlock(n.consensus.CurrentRound.Block, n.consensus.CurrentRound.BlockID)
-
-	// clean mempool
-
+	// commit block
+	ok = n.commitBlock()
 	if !ok {
-		panic("Block commit failed, state fucked")
+		panic("Block commit failed, state fucked, quiting ...")
 	}
+
+	n.logger.Info("Successfully committed block, moving to next round ..", zap.String("blockID", blockIDStr))
 
 	// move to next round
 	n.consensus.NextRound()
 
+	n.logger.Info("Successfully moved to next round", zap.Int("roundNumber", n.consensus.RoundNumber))
+
 	return ack, nil
 }
 
-func (n *Node) commitBlock(block *blocks.Block, blockID []byte) bool {
+func (n *Node) commitBlock() bool {
+	block := n.consensus.CurrentRound.Block
+	blockID := n.consensus.CurrentRound.BlockID
+	blockIDStr := hex.EncodeToString(blockID)
+
 	// add block to block store
-	err := n.BlockStore.Put(n.consensus.CurrentRound.Block)
+	err := n.BlockStore.Put(block)
 	if err != nil {
-		n.logger.Error("Error adding block to block store", zap.Error(err))
+		n.logger.Error("Error committing block: unable to add block to block store", zap.String("blockID", blockIDStr), zap.Error(err))
 		return false
 	}
+
+	n.logger.Info("Successfully added block to block store, adding block to block list ...", zap.String("blockID", blockIDStr))
 
 	// add block to block list
 	err = n.BlockList.Add(blockID)
 	if err != nil {
-		n.logger.Error("Error adding block to block list, walking back block commit ...", zap.Error(err))
-		err = n.walkBackCommit(blockID, nil, nil, nil, nil)
-		if err != nil {
-			n.logger.Error("Error walking back block commit", zap.Error(err))
+		n.logger.Error("Error committing block: unable to add block to block list, walking back commit block ...", zap.String("blockID", blockIDStr), zap.Error(err))
+		ok := n.walkBackCommitBlock(blockID, true, false)
+		if !ok {
 			return false
 		}
+		n.logger.Info("Successfully walked back commit block, exiting ...", zap.String("blockID", blockIDStr))
 		return false
 	}
 
+	n.logger.Info("Successfully added block to block list, committing transactions ...", zap.String("blockID", blockIDStr))
+
+	// commit transactions
+	ok := n.commitTransactions(block.Transactions)
+	if !ok {
+		n.logger.Error("Error committing block: unable to commit transactions, walking back commit block ...", zap.String("blockID", blockIDStr), zap.Error(err))
+		ok = n.walkBackCommitBlock(blockID, true, true)
+		if !ok {
+			return false
+		}
+		n.logger.Info("Successfully walked back commit block, exiting ...", zap.String("blockID", blockIDStr))
+		return false
+	}
+
+	n.logger.Info("Successfully committed transactions, cleaning mempool ...", zap.String("blockID", blockIDStr))
+
+	// clean mempool
+	ok = n.cleanMempool()
+	if !ok {
+		return false
+	}
+
+	n.logger.Info("Successfully cleaned mempool, block committed", zap.String("blockID", blockIDStr))
+	return true
+}
+
+func (n *Node) commitTransactions(txs []*transactions.Transaction) bool {
 	var committedTXs [][]byte
 	var consumedUTXOs map[string]*utxos.UTXO
 	var producedUTXOs [][]byte
-	for _, tx := range block.Transactions {
+
+	// add transactions to transaction store, remove consumed utxos from utxo store, add produced utxos to utxo store
+	for i, tx := range txs {
+		// get transaction id
 		txID, err := tx.Hash()
 		if err != nil {
-			n.logger.Error("Error hashing transaction, walking back block commit ...", zap.Error(err))
-			err = n.walkBackCommit(blockID, blockID, committedTXs, consumedUTXOs, producedUTXOs)
-			if err != nil {
-				n.logger.Error("Error walking back block commit", zap.Error(err))
+			n.logger.Error("Error committing transactions: unable to hash transaction, walking back commit transactions ...", zap.Int("txIndex", i), zap.Error(err))
+			ok := n.walkBackCommitTransactions(committedTXs, consumedUTXOs, producedUTXOs)
+			if !ok {
 				return false
 			}
+			n.logger.Info("Successfully walked back commit transactions, exiting ...", zap.Int("txIndex", i))
 			return false
 		}
-		// add transactions to transaction store
-		err = n.TransactionStore.Put(tx)
+
+		// add transaction to transaction store
+		err = n.TransactionStore.Put(txID, tx)
 		if err != nil {
-			n.logger.Error("Error adding transaction to transaction store, walking back block commit ...", zap.Error(err))
-			err = n.walkBackCommit(blockID, blockID, committedTXs, consumedUTXOs, producedUTXOs)
-			if err != nil {
-				n.logger.Error("Error walking back block commit", zap.Error(err))
+			n.logger.Error("Error committing transactions: unable to add transaction to transaction store, walking back commit transactions ...", zap.Int("txIndex", i), zap.Error(err))
+			ok := n.walkBackCommitTransactions(committedTXs, consumedUTXOs, producedUTXOs)
+			if !ok {
 				return false
 			}
+			n.logger.Info("Successfully walked back commit transactions, exiting ...", zap.Int("txIndex", i))
 			return false
 		}
 		committedTXs = append(committedTXs, txID)
@@ -502,73 +541,124 @@ func (n *Node) commitBlock(block *blocks.Block, blockID []byte) bool {
 		// remove consumed utxos from utxo store
 		for _, input := range tx.Inputs {
 			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
+			utxoIDStr := hex.EncodeToString(utxoID)
 			utxo, err := n.UtxoStore.Delete(utxoID)
 			if err != nil {
-				n.logger.Error("Error removing consumed utxo from utxo store, walking back block commit ...", zap.Error(err))
-				err = n.walkBackCommit(blockID, blockID, committedTXs, consumedUTXOs, producedUTXOs)
-				if err != nil {
-					n.logger.Error("Error walking back block commit", zap.Error(err))
+				n.logger.Error("Error committing transactions: unable to remove consumed utxo from utxo store, walking back commit transactions ...", zap.Int("txIndex", i), zap.Error(err))
+				ok := n.walkBackCommitTransactions(committedTXs, consumedUTXOs, producedUTXOs)
+				if !ok {
 					return false
 				}
+				n.logger.Info("Successfully walked back commit transactions, exiting ...", zap.Int("txIndex", i))
 				return false
 			}
-			consumedUTXOs[hex.EncodeToString(utxoID)] = utxo
+			consumedUTXOs[utxoIDStr] = utxo
 		}
+
 		// add produced utxos to utxo store
 		for i, output := range tx.Outputs {
 			utxoID := utxos.CreateUTXOID(txID, int64(i))
 			utxo := utxos.NewUTXO(output.Amount, output.LockingScript)
 			err = n.UtxoStore.Put(utxoID, utxo)
 			if err != nil {
-				n.logger.Error("Error adding produced utxo to utxo store, walking back block commit ...", zap.Error(err))
-				err = n.walkBackCommit(blockID, blockID, committedTXs, consumedUTXOs, producedUTXOs)
-				if err != nil {
-					n.logger.Error("Error walking back block commit", zap.Error(err))
+				n.logger.Error("Error committing transactions: unable to add produced utxo to utxo store, walking back commit transactions ...", zap.Int("txIndex", i), zap.Error(err))
+				ok := n.walkBackCommitTransactions(committedTXs, consumedUTXOs, producedUTXOs)
+				if !ok {
 					return false
 				}
+				n.logger.Info("Successfully walked back commit transactions, exiting ...", zap.Int("txIndex", i))
 				return false
 			}
 			producedUTXOs = append(producedUTXOs, utxoID)
 		}
 	}
+	return true
 }
 
-func (n *Node) walkBackCommit(blockIDStore []byte, blockIDList []byte, txIDs [][]byte, consumedUTXOs map[string]*utxos.UTXO, producedUTXOs [][]byte) error {
-	if blockIDStore != nil {
-		err := n.BlockStore.Delete(blockIDStore)
+func (n *Node) walkBackCommitBlock(blockID []byte, store bool, list bool) bool {
+	blockIDStr := hex.EncodeToString(blockID)
+
+	// remove committed block from block store
+	if store {
+		err := n.BlockStore.Delete(blockID)
 		if err != nil {
-			return err
+			n.logger.Error("Error walking back block commit: unable to remove block from block store", zap.String("blockID", blockIDStr), zap.Error(err))
+			return false
 		}
 	}
-	if blockIDList != nil {
-		err := n.BlockList.Delete(blockIDList)
+
+	// remove committed block from block list
+	if list {
+		err := n.BlockList.Delete(blockID)
 		if err != nil {
-			return err
+			n.logger.Error("Error walking back block commit: unable to remove block block list", zap.String("blockID", blockIDStr), zap.Error(err))
+			return false
 		}
 	}
-	for _, txID := range txIDs {
+	return true
+}
+
+func (n *Node) walkBackCommitTransactions(committedTXs [][]byte, consumedUTXOs map[string]*utxos.UTXO, producedUTXOs [][]byte) bool {
+	// remove committed transactions from transaction store
+	for i, txID := range committedTXs {
 		err := n.TransactionStore.Delete(txID)
 		if err != nil {
-			return err
+			n.logger.Error("Error walking back commit transactions: unable to remove transaction from transaction store", zap.Int("txIndex", i), zap.Error(err))
+			return false
 		}
 	}
+
+	// add consumed utxos back to utxo store
 	for utxoIDStr, utxo := range consumedUTXOs {
 		utxoID, err := hex.DecodeString(utxoIDStr)
 		if err != nil {
-			return err
+			n.logger.Error("Error walking back commit transactions: unable to decode utxoIDStr", zap.String("utxoID", utxoIDStr))
+			return false
 		}
 		err = n.UtxoStore.Put(utxoID, utxo)
 		if err != nil {
-			return err
+			n.logger.Error("Error walking back commit transactions: unable to add consumed utxo back to utxo store", zap.String("utxoID", utxoIDStr), zap.Error(err))
+			return false
 		}
 	}
+
+	// remove produced utxos from utxo store
 	for _, utxoID := range producedUTXOs {
+		utxoIDStr := hex.EncodeToString(utxoID)
 		_, err := n.UtxoStore.Delete(utxoID)
 		if err != nil {
-			return err
+			n.logger.Error("Error walking back commit transactions: unable to remove produced utxo from utxo store", zap.String("utxoID", utxoIDStr), zap.Error(err))
+			return false
 		}
 	}
-	return nil
+	return true
+}
+
+func (n *Node) cleanMempool() bool {
+	// remove committed transactions and consumed utxos from mempool
+	for _, tx := range n.consensus.CurrentRound.Block.Transactions {
+		txID, err := tx.Hash()
+		if err != nil {
+			n.logger.Error("Error cleaning mempool: unable to hash transaction", zap.Error(err))
+			return false
+		}
+		txIDStr := hex.EncodeToString(txID)
+
+		// remove committed transaction from mempool
+		if n.Mempool.HasTransaction(txID) {
+			n.Mempool.DeleteTransaction(txIDStr)
+		}
+		// remove consumed utxos from mempool
+		for _, input := range tx.Inputs {
+			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
+			if n.Mempool.HasUTXO(utxoID) {
+				n.Mempool.DeleteUTXO(utxoID)
+			}
+		}
+	}
+	// remove now invalid transactions from mempool
+	n.Mempool.Cleanse()
+	return true
 }
 
 func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction) (*proto.Ack, error) {

@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sync"
+
+	"github.com/fahyjo/blockchain/utxos"
 )
 
 // Mempool keeps track of all currently pending transactions
@@ -45,6 +47,13 @@ func (m *Mempool) PutTransaction(txID []byte, tx *Transaction) {
 	m.transactions[txIDStr] = tx
 }
 
+func (m *Mempool) DeleteTransaction(txIDStr string) {
+	m.transactionLock.Lock()
+	defer m.transactionLock.Unlock()
+
+	delete(m.transactions, txIDStr)
+}
+
 func (m *Mempool) HasTransaction(txID []byte) bool {
 	m.transactionLock.RLock()
 	defer m.transactionLock.RUnlock()
@@ -52,6 +61,21 @@ func (m *Mempool) HasTransaction(txID []byte) bool {
 	txIDStr := hex.EncodeToString(txID)
 	_, ok := m.transactions[txIDStr]
 	return ok
+}
+
+func (m *Mempool) Cleanse() {
+	m.transactionLock.Lock()
+	defer m.transactionLock.Unlock()
+
+	for txIDStr, tx := range m.transactions {
+		for _, input := range tx.Inputs {
+			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
+			ok := m.HasUTXO(utxoID)
+			if !ok {
+				m.DeleteTransaction(txIDStr)
+			}
+		}
+	}
 }
 
 func (m *Mempool) TransactionsSize() int {
@@ -64,6 +88,14 @@ func (m *Mempool) PutUTXO(utxoID []byte, b bool) {
 
 	utxoIDStr := hex.EncodeToString(utxoID)
 	m.utxos[utxoIDStr] = b
+}
+
+func (m *Mempool) DeleteUTXO(utxoID []byte) {
+	m.utxoLock.Lock()
+	defer m.utxoLock.Unlock()
+
+	utxoIDStr := hex.EncodeToString(utxoID)
+	delete(m.utxos, utxoIDStr)
 }
 
 func (m *Mempool) HasUTXO(utxoID []byte) bool {

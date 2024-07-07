@@ -5,7 +5,7 @@ import "slices"
 type Consensus struct {
 	AmValidator  bool
 	Validators   []string
-	roundNumber  int
+	RoundNumber  int
 	CurrentRound *Round
 }
 
@@ -13,7 +13,7 @@ func NewConsensus(amValidator bool, validators []string, roundNumber int, curren
 	return &Consensus{
 		AmValidator:  amValidator,
 		Validators:   validators,
-		roundNumber:  roundNumber,
+		RoundNumber:  roundNumber,
 		CurrentRound: currentRound,
 	}
 }
@@ -23,7 +23,7 @@ func (c *Consensus) IsValidator(validatorID string) bool {
 }
 
 func (c *Consensus) NextRound() {
-	c.roundNumber++
-	proposerID := c.Validators[c.roundNumber%len(c.Validators)]
+	c.RoundNumber++
+	proposerID := c.Validators[c.RoundNumber%len(c.Validators)]
 	c.CurrentRound = NewRound(proposerID)
 }

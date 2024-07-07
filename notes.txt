@@ -74,7 +74,6 @@ NEXT STEPS
 - block validation
 - transaction validation
     - change mempool check to check that not claimed by someone else (will work for transaction validation in btoh contexts)
-- consensus, crpyto config
 - code review - refactor, test, document
 - genesis block
 - triggers (new tx, new block, dump stores, mempool, caches ...)
