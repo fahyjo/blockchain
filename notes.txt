@@ -70,7 +70,6 @@ Tendermint Protocol BFT PoS
 
 
 NEXT STEPS
-- block validation
 - transaction validation
     - change mempool check to check that not claimed by someone else (will work for transaction validation in btoh contexts)
 - code review - refactor, test, document

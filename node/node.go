@@ -240,15 +240,31 @@ func (n *Node) validateBlock(block *blocks.Block, blockID []byte) bool {
 	}
 
 	// validate transactions
+	var consumedUTXOs map[string]int
 	for i, tx := range block.Transactions {
 		txID, err := tx.Hash()
 		if err != nil {
 			n.logger.Error("Error validating block: unable to hash transaction", zap.String("blockID", blockIDStr), zap.Int("txIndex", i), zap.Error(err))
 			return false
 		}
-		ok := n.validateTransaction(tx, txID)
+		ok := n.validateTransaction(tx, txID, false)
 		if !ok {
 			return false
+		}
+		// check if transactions in the same block are double spending utxos
+		for _, input := range tx.Inputs {
+			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
+			utxoIDStr := hex.EncodeToString(utxoID)
+			index, ok := consumedUTXOs[utxoIDStr]
+			if ok {
+				n.logger.Error("Error validating block: multiple transactions claim the same utxo",
+					zap.String("blockID", blockIDStr),
+					zap.String("utxoID", utxoIDStr),
+					zap.Int("txIndex1", index),
+					zap.Int("txIndex2", i))
+				return false
+			}
+			consumedUTXOs[utxoIDStr] = i
 		}
 	}
 
@@ -756,8 +772,8 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	return ack, nil
 }
 
-func (n *Node) validateTransaction(tx *transactions.Transaction, txID []byte) bool {
-	ok := n.validateTransactionInputs(tx.Inputs, txID)
+func (n *Node) validateTransaction(tx *transactions.Transaction, txID []byte, checkMempool bool) bool {
+	ok := n.validateTransactionInputs(tx.Inputs, txID, checkMempool)
 	if !ok {
 		return false
 	}
@@ -770,7 +786,7 @@ func (n *Node) validateTransaction(tx *transactions.Transaction, txID []byte) bo
 	return true
 }
 
-func (n *Node) validateTransactionInputs(inputs []*transactions.Input, txID []byte) bool {
+func (n *Node) validateTransactionInputs(inputs []*transactions.Input, txID []byte, checkMempool bool) bool {
 	txIDStr := hex.EncodeToString(txID)
 
 	var seenUTXOs map[string]bool
@@ -811,12 +827,14 @@ func (n *Node) validateTransactionInputs(inputs []*transactions.Input, txID []by
 		}
 
 		// checks that the referenced utxo is not claimed by other transaction already in mempool
-		if n.Mempool.HasUTXO(utxoID) {
-			n.logger.Error("Error validating transaction: transaction contains mempool claimed utxo",
-				zap.String("txID", txIDStr),
-				zap.Int("inputIndex", i),
-				zap.String("utxoID", utxoIDStr))
-			return false
+		if checkMempool {
+			if n.Mempool.HasUTXO(utxoID) {
+				n.logger.Error("Error validating transaction: transaction contains mempool claimed utxo",
+					zap.String("txID", txIDStr),
+					zap.Int("inputIndex", i),
+					zap.String("utxoID", utxoIDStr))
+				return false
+			}
 		}
 
 		// checks that the tx owner has the right to spend referenced utxo
