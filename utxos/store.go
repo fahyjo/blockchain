@@ -7,16 +7,19 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
+// UTXOStore stores UTXOs in a key-value store
 type UTXOStore interface {
-	Get([]byte) (*UTXO, error)
-	Put([]byte, *UTXO) error
-	Delete([]byte) (*UTXO, error)
+	Get([]byte) (*UTXO, error)    // Get retrieves the UTXO with the given utxoID, returns error if the UTXO is not found
+	Put([]byte, *UTXO) error      // Put maps the given utxoID to the given UTXO
+	Delete([]byte) (*UTXO, error) // Delete removes the UTXO with the given utxoID, returns the removed utxo, and returns an error if the UTXO is not found
 }
 
+// MemoryUTXOStore is an in-memory UTXOStore implementation
 type MemoryUTXOStore struct {
-	db map[string]*UTXO
+	db map[string]*UTXO // db maps the utxoID (encoded as a string) to the utxo
 }
 
+// NewMemoryUTXOStore creates a new MemoryUTXOStore
 func NewMemoryUTXOStore() UTXOStore {
 	return &MemoryUTXOStore{
 		db: make(map[string]*UTXO),
@@ -27,7 +30,7 @@ func (s *MemoryUTXOStore) Get(utxoID []byte) (*UTXO, error) {
 	utxoIDStr := hex.EncodeToString(utxoID)
 	utxo, ok := s.db[utxoIDStr]
 	if !ok {
-		return nil, fmt.Errorf("utxo not found: %s", utxoIDStr)
+		return nil, fmt.Errorf("error getting from utxo store: utxo %s not found", utxoIDStr)
 	}
 	return utxo, nil
 }
@@ -42,16 +45,18 @@ func (s *MemoryUTXOStore) Delete(utxoID []byte) (*UTXO, error) {
 	utxoIDStr := hex.EncodeToString(utxoID)
 	utxo, ok := s.db[utxoIDStr]
 	if !ok {
-		return nil, fmt.Errorf("utxo not found: %s", utxoIDStr)
+		return nil, fmt.Errorf("error deleting from utxo store: utxo %s not found", hex.EncodeToString(utxoID))
 	}
 	delete(s.db, utxoIDStr)
 	return utxo, nil
 }
 
+// LevelsUTXOStore uses LevelDB to store utxos
 type LevelsUTXOStore struct {
 	db *leveldb.DB
 }
 
+// NewLevelsUTXOStore creates a new LevelsUTXOStore at the given path
 func NewLevelsUTXOStore(path string) (UTXOStore, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
@@ -79,12 +84,10 @@ func (s *LevelsUTXOStore) Put(utxoID []byte, utxo *UTXO) error {
 	if err != nil {
 		return err
 	}
-
 	err = s.db.Put(utxoID, b, nil)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 

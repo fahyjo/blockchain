@@ -1,26 +1,3 @@
-Transaction validation
-- inputs can be processed in parallel
-
-Block validation
-- prev block hash verify + timestamp
-- verify signature to ensure staker possess private key corresponding to staking address
-    - verifies that block has not been changed since it was signed
-    - verifies that the block was signed by valid staker (they have priv key associated with pub
-    key of utxos being staked)
-- do i care if ref utxos spent by transacions in mempool
-    - if od have to change written code
-    - if not need to clean mempool after commit block
-- need to check that no utxos being spent by transactions in same block
-- dobule spend check
-    - transacitons already gone throug, mempool, txs in same block
-- sig verification for each input
-- needs to be voted for by maj=ority of validators
-- everything about validators
-
-- take mempool out of cache
-- caches will map idStr to info about that thing, exception of peer cache
--
-
 Consensus
 - validators
     - nodes with signgiciat amount of crypto are validators
@@ -35,43 +12,11 @@ Consensus
 - Rewards
     - validators are rewared for partiicaption -> get rewarded transaction fees
     - rewards distributed proportional to stake
-- Ouroboros Consensus Protocol
-    - protocol divided into epochs and slots
-    - each slot has designated slot leader responsible for creating a block
-    - slot leaders selected randmoy using multi party computtion process
-    - can delegate stake to a staking pool if they do not wish to be directly involved in validation
-    - at the end of each epoch, checkpints are created
-Tendermint Protocol BFT PoS
-- propose phase
-    - proposer is selcted to prose new block of transactions
-    - proosed block is broadcast to all validators
-- prevote phase
-    - validators receive the proposed block and braodcast a pre-vote message if they consider the block valid
-    - if validator recvied supermajorit of pre-votes for the proposed block, it moves to pre-commit phase
-- precommit phase
-    - validators broadcast pre-commit message if they revceive supermajhort of pre votes for proposed block
-    - if vlaidators receives suieprmajhoprty of pre commits , block is consdierd locked
-- commit phase
-    - validotrs broadcast commit messages for the locked blokc
-    - once a supermajoriyt of commit messages is recigfed, block is added to blockchain
-- info
-    - can tolerate up to one third of vlaidators acting maliciously
-    - blocks are immediately final once they are committed
-    - requires a fixed set of validators
-    - validators are rewarded for validating and proposing blocks, punished for malicous behaviuor
-    - have initial set of validaotrs
-        - two thirds of validators for validator change
-- implement
-    - set of validators at start
-    - just iterate through list for each round
-    - start with 15 nodes, 6 of them validators
 
 
 
 
 NEXT STEPS
-- transaction validation
-    - change mempool check to check that not claimed by someone else (will work for transaction validation in btoh contexts)
 - code review - refactor, test, document
 - genesis block
 - triggers (new tx, new block, dump stores, mempool, caches ...)

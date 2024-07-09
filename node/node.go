@@ -742,7 +742,7 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	n.logger.Info("Received new transaction, validating transaction ...", zap.String("txID", txIDStr))
 
 	// validate transaction
-	ok = n.validateTransaction(tx, txID)
+	ok = n.validateTransaction(tx, txID, true)
 	if !ok {
 		return ack, nil
 	}

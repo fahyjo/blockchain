@@ -9,7 +9,7 @@ import (
 
 func main() {
 	for i := 0; i < 15; i++ {
-		privKey, err := crypto.NewPrivateKey()
+		privKey, err := crypto.GenerateNewPrivateKey()
 		if err != nil {
 			panic(err)
 		}
