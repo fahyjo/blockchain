@@ -6,7 +6,7 @@ import (
 
 // UTXO represents an unspent transaction output
 type UTXO struct {
-	Amount        int64                       // Amount specifies number of tokens this utxo is worth
+	Amount        int64                       // Amount specifies number of tokens this UTXO is worth
 	LockingScript *transactions.LockingScript // LockingScript specifies the conditions under which this utxo can be spent
 }
 

@@ -9,14 +9,14 @@ import (
 
 // UTXOStore stores UTXOs in a key-value store
 type UTXOStore interface {
-	Get([]byte) (*UTXO, error)    // Get retrieves the UTXO with the given utxoID, returns error if the UTXO is not found
-	Put([]byte, *UTXO) error      // Put maps the given utxoID to the given UTXO
-	Delete([]byte) (*UTXO, error) // Delete removes the UTXO with the given utxoID, returns the removed utxo, and returns an error if the UTXO is not found
+	Get([]byte) (*UTXO, error)    // Get retrieves the UTXO with the given utxo ID, returns error if the UTXO is not found
+	Put([]byte, *UTXO) error      // Put maps the given utxo ID to the given UTXO
+	Delete([]byte) (*UTXO, error) // Delete removes the UTXO with the given utxo ID, returns the removed UTXO, and returns an error if the UTXO is not found
 }
 
 // MemoryUTXOStore is an in-memory UTXOStore implementation
 type MemoryUTXOStore struct {
-	db map[string]*UTXO // db maps the utxoID (encoded as a string) to the utxo
+	db map[string]*UTXO // db maps the utxo ID (encoded as a string) to the UTXO
 }
 
 // NewMemoryUTXOStore creates a new MemoryUTXOStore

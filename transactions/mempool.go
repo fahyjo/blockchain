@@ -8,7 +8,7 @@ import (
 	"github.com/fahyjo/blockchain/utxos"
 )
 
-// Mempool keeps track of all currently pending transactions and the utxos that they claim
+// Mempool keeps track of all the currently pending transactions and the utxos that they claim
 type Mempool struct {
 	transactionLock sync.RWMutex            // transactionLock read/write mutex that ensures Mempool transactions is concurrent-safe
 	transactions    map[string]*Transaction // transactions maps transaction ids to transactions for all currently pending transactions
@@ -71,7 +71,7 @@ func (m *Mempool) HasTransaction(txIDStr string) bool {
 	return ok
 }
 
-// Cleanse removes all transactions from the Mempool if the utxos they claim have been spent since the transactions were added to the Mempool
+// Cleanse removes transactions from the Mempool if the utxos they claim have been spent
 func (m *Mempool) Cleanse() error {
 	m.transactionLock.Lock()
 	defer m.transactionLock.Unlock()
@@ -79,7 +79,8 @@ func (m *Mempool) Cleanse() error {
 	for txIDStr, tx := range m.transactions {
 		for _, input := range tx.Inputs {
 			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
-			ok := m.HasUTXO(utxoID)
+			utxoIDStr := hex.EncodeToString(utxoID)
+			ok := m.HasUTXO(utxoIDStr)
 			if !ok {
 				err := m.DeleteTransaction(txIDStr)
 				if err != nil {
@@ -91,36 +92,42 @@ func (m *Mempool) Cleanse() error {
 	return nil
 }
 
-// TransactionsSize returns the number of transactions in the Mempool
+// TransactionsSize returns the number of currently pending transactions
 func (m *Mempool) TransactionsSize() int {
 	return len(m.transactions)
 }
 
-func (m *Mempool) PutUTXO(utxoID []byte, b bool) {
+// PutUTXO adds the utxo id to the utxos Mempool
+func (m *Mempool) PutUTXO(utxoIDStr string, b bool) {
 	m.utxoLock.Lock()
 	defer m.utxoLock.Unlock()
 
-	utxoIDStr := hex.EncodeToString(utxoID)
 	m.utxos[utxoIDStr] = b
 }
 
-func (m *Mempool) DeleteUTXO(utxoID []byte) {
+// DeleteUTXO removes the given utxo id from the utxos Mempool, returns an error if the given utxo id is not found
+func (m *Mempool) DeleteUTXO(utxoIDStr string) error {
 	m.utxoLock.Lock()
 	defer m.utxoLock.Unlock()
 
-	utxoIDStr := hex.EncodeToString(utxoID)
+	ok := m.HasUTXO(utxoIDStr)
+	if !ok {
+		return fmt.Errorf("error deleting from utxos mempool: utxo %s not found", utxoIDStr)
+	}
 	delete(m.utxos, utxoIDStr)
+	return nil
 }
 
-func (m *Mempool) HasUTXO(utxoID []byte) bool {
+// HasUTXO returns true if the given utxo id is in the utxos Mempool, returns false otherwise
+func (m *Mempool) HasUTXO(utxoIDStr string) bool {
 	m.utxoLock.RLock()
 	defer m.utxoLock.RUnlock()
 
-	utxoIDStr := hex.EncodeToString(utxoID)
 	_, ok := m.utxos[utxoIDStr]
 	return ok
 }
 
+// UTXOsSize returns the number of utxos claimed by currently pending transactions
 func (m *Mempool) UTXOsSize() int {
 	return len(m.utxos)
 }

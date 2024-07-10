@@ -1,12 +1,12 @@
 package transactions
 
-import proto "github.com/fahyjo/blockchain/proto"
-
+// Output represents a Transaction output and is used to create a new UTXO
 type Output struct {
 	Amount        int64
 	LockingScript *LockingScript
 }
 
+// NewOutput creates a new Output
 func NewOutput(amount int64, script *LockingScript) *Output {
 	return &Output{
 		Amount:        amount,
@@ -14,35 +14,14 @@ func NewOutput(amount int64, script *LockingScript) *Output {
 	}
 }
 
-func convertProtoOutput(protoOutput *proto.TxOutput) *Output {
-	lockingScript := convertProtoLockingScript(protoOutput.LockingScript)
-	return NewOutput(protoOutput.Amount, lockingScript)
-}
-
-func convertOutput(output *Output) *proto.TxOutput {
-	protoLockingScript := convertLockingScript(output.LockingScript)
-	return &proto.TxOutput{
-		Amount:        output.Amount,
-		LockingScript: protoLockingScript,
-	}
-}
-
+// LockingScript specifies the conditions under which the utxo to be created can be spent
 type LockingScript struct {
-	PubKeyHash []byte
+	PubKeyHash []byte // PubKeyHash is the hash of the transaction creator's public key
 }
 
+// NewLockingScript creates a new LockingScript
 func NewLockingScript(pubKeyHash []byte) *LockingScript {
 	return &LockingScript{
 		PubKeyHash: pubKeyHash,
-	}
-}
-
-func convertProtoLockingScript(protoLockingScript *proto.LockingScript) *LockingScript {
-	return NewLockingScript(protoLockingScript.PubKeyHash)
-}
-
-func convertLockingScript(lockingScript *LockingScript) *proto.LockingScript {
-	return &proto.LockingScript{
-		PubKeyHash: lockingScript.PubKeyHash,
 	}
 }
