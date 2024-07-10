@@ -8,15 +8,16 @@ import (
 	"github.com/fahyjo/blockchain/utxos"
 )
 
-// Mempool keeps track of all currently pending transactions
+// Mempool keeps track of all currently pending transactions and the utxos that they claim
 type Mempool struct {
-	transactionLock sync.RWMutex
-	transactions    map[string]*Transaction
+	transactionLock sync.RWMutex            // transactionLock read/write mutex that ensures Mempool transactions is concurrent-safe
+	transactions    map[string]*Transaction // transactions maps transaction ids to transactions for all currently pending transactions
 
-	utxoLock sync.RWMutex
-	utxos    map[string]bool
+	utxoLock sync.RWMutex    // utxoLock read/write mutex that ensures Mempool utxos is concurrent-safe
+	utxos    map[string]bool // utxos maps utxo ids to utxos for all utxos claimed by transactions in the Mempool
 }
 
+// NewMempool creates a new Mempool
 func NewMempool() *Mempool {
 	return &Mempool{
 		transactionLock: sync.RWMutex{},
@@ -26,44 +27,52 @@ func NewMempool() *Mempool {
 	}
 }
 
-func (m *Mempool) GetTransaction(txID []byte) (*Transaction, error) {
+// GetTransaction retrieves the transaction with the given transaction id, returns an error if the transaction is not present
+func (m *Mempool) GetTransaction(txIDStr string) (*Transaction, error) {
 	m.transactionLock.RLock()
 	defer m.transactionLock.RUnlock()
 
-	txIDStr := hex.EncodeToString(txID)
 	tx, ok := m.transactions[txIDStr]
 	if !ok {
-		return nil, fmt.Errorf("mempool transactions cache miss: %s", txIDStr)
+		return nil, fmt.Errorf("error getting from transactions mempool: transaction %s not found", txIDStr)
 	}
 
 	return tx, nil
 }
 
-func (m *Mempool) PutTransaction(txID []byte, tx *Transaction) {
+// PutTransaction maps the given transaction id to the given transaction
+func (m *Mempool) PutTransaction(txIDStr string, tx *Transaction) {
 	m.transactionLock.Lock()
 	defer m.transactionLock.Unlock()
 
-	txIDStr := hex.EncodeToString(txID)
 	m.transactions[txIDStr] = tx
 }
 
-func (m *Mempool) DeleteTransaction(txIDStr string) {
+// DeleteTransaction removes the transaction with the given transaction id, returns an error if the transaction is not present
+func (m *Mempool) DeleteTransaction(txIDStr string) error {
 	m.transactionLock.Lock()
 	defer m.transactionLock.Unlock()
 
+	ok := m.HasTransaction(txIDStr)
+	if !ok {
+		return fmt.Errorf("error deleting from transactions mempool: transaction %s not found", txIDStr)
+	}
+
 	delete(m.transactions, txIDStr)
+	return nil
 }
 
-func (m *Mempool) HasTransaction(txID []byte) bool {
+// HasTransaction returns true if the transaction with the given transaction id is in the Mempool, returns false otherwise
+func (m *Mempool) HasTransaction(txIDStr string) bool {
 	m.transactionLock.RLock()
 	defer m.transactionLock.RUnlock()
 
-	txIDStr := hex.EncodeToString(txID)
 	_, ok := m.transactions[txIDStr]
 	return ok
 }
 
-func (m *Mempool) Cleanse() {
+// Cleanse removes all transactions from the Mempool if the utxos they claim have been spent since the transactions were added to the Mempool
+func (m *Mempool) Cleanse() error {
 	m.transactionLock.Lock()
 	defer m.transactionLock.Unlock()
 
@@ -72,12 +81,17 @@ func (m *Mempool) Cleanse() {
 			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
 			ok := m.HasUTXO(utxoID)
 			if !ok {
-				m.DeleteTransaction(txIDStr)
+				err := m.DeleteTransaction(txIDStr)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
+	return nil
 }
 
+// TransactionsSize returns the number of transactions in the Mempool
 func (m *Mempool) TransactionsSize() int {
 	return len(m.transactions)
 }

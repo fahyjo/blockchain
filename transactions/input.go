@@ -4,15 +4,16 @@ import (
 	"bytes"
 
 	"github.com/fahyjo/blockchain/crypto"
-	proto "github.com/fahyjo/blockchain/proto"
 )
 
+// Input represents a Transaction input and identifies a UTXO to be spent
 type Input struct {
-	TxID            []byte
-	UTXOIndex       int64
-	UnlockingScript *UnlockingScript
+	TxID            []byte           // TxID specifies the id of the transaction that produced the UTXO to be spent
+	UTXOIndex       int64            // UTXOIndex specifies the transaction output index of the UTXO to be spent
+	UnlockingScript *UnlockingScript // UnlockingScript contains the information proving the transaction creator's right to spend the UTXO to be spent
 }
 
+// NewInput creates a new Input
 func NewInput(txID []byte, utxoIndex int64, script *UnlockingScript) *Input {
 	return &Input{
 		TxID:            txID,
@@ -21,25 +22,13 @@ func NewInput(txID []byte, utxoIndex int64, script *UnlockingScript) *Input {
 	}
 }
 
-func convertProtoInput(protoInput *proto.TxInput) *Input {
-	unlockingScript := convertProtoUnlockingScript(protoInput.UnlockingScript)
-	return NewInput(protoInput.TxID, protoInput.UtxoIndex, unlockingScript)
-}
-
-func convertInput(input *Input) *proto.TxInput {
-	protoUnlockingScript := convertUnlockingScript(input.UnlockingScript)
-	return &proto.TxInput{
-		TxID:            input.TxID,
-		UtxoIndex:       input.UTXOIndex,
-		UnlockingScript: protoUnlockingScript,
-	}
-}
-
+// UnlockingScript contains the information proving the transaction creator's right to spend the UTXO to be spent
 type UnlockingScript struct {
-	PubKey *crypto.PublicKey
-	Sig    *crypto.Signature
+	PubKey *crypto.PublicKey // PubKey is the transaction creator's public key
+	Sig    *crypto.Signature // Sig is the digital signature of the transaction hash by the transaction creator's private key
 }
 
+// NewUnlockingScript creates a new UnlockingScript
 func NewUnlockingScript(pubKey *crypto.PublicKey, sig *crypto.Signature) *UnlockingScript {
 	return &UnlockingScript{
 		PubKey: pubKey,
@@ -47,20 +36,8 @@ func NewUnlockingScript(pubKey *crypto.PublicKey, sig *crypto.Signature) *Unlock
 	}
 }
 
+// Unlock attempts to unlock the given locking script
 func (u *UnlockingScript) Unlock(l *LockingScript) bool {
 	uPubKeyHash := u.PubKey.Hash()
 	return bytes.Equal(uPubKeyHash, l.PubKeyHash)
-}
-
-func convertProtoUnlockingScript(protoUnlockingScript *proto.UnlockingScript) *UnlockingScript {
-	pubKey := crypto.NewPublicKey(protoUnlockingScript.PubKey)
-	sig := crypto.NewSignature(protoUnlockingScript.Sig)
-	return NewUnlockingScript(pubKey, sig)
-}
-
-func convertUnlockingScript(unlockingScript *UnlockingScript) *proto.UnlockingScript {
-	return &proto.UnlockingScript{
-		PubKey: unlockingScript.PubKey.Bytes(),
-		Sig:    unlockingScript.Sig.Bytes(),
-	}
 }

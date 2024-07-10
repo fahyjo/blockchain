@@ -1,17 +1,16 @@
 package transactions
 
 import (
-	"encoding/hex"
-	"fmt"
 	"sync"
 )
 
 // TransactionCache keeps track of all the transactions we have seen
 type TransactionCache struct {
-	lock  sync.RWMutex
-	cache map[string]bool
+	lock  sync.RWMutex    // lock read/write mutex that ensures TransactionCache is concurrent-safe
+	cache map[string]bool // cache holds all the transaction ids we have seen
 }
 
+// NewTransactionCache creates a new TransactionCache
 func NewTransactionCache() *TransactionCache {
 	return &TransactionCache{
 		lock:  sync.RWMutex{},
@@ -19,35 +18,24 @@ func NewTransactionCache() *TransactionCache {
 	}
 }
 
-func (c *TransactionCache) Get(txID []byte) (bool, error) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-
-	txIDStr := hex.EncodeToString(txID)
-	b, ok := c.cache[txIDStr]
-	if !ok {
-		return false, fmt.Errorf("transaction cache miss: %s", txIDStr)
-	}
-	return b, nil
-}
-
-func (c *TransactionCache) Put(txID []byte, b bool) {
+// Put adds the Transaction with the given transaction id to the TransactionCache
+func (c *TransactionCache) Put(txIDStr string, b bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	txIDStr := hex.EncodeToString(txID)
 	c.cache[txIDStr] = b
 }
 
-func (c *TransactionCache) Has(txID []byte) bool {
+// Has returns true if the Transaction with the given transaction id is in the TransactionCache, and false otherwise
+func (c *TransactionCache) Has(txIDStr string) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	txIDStr := hex.EncodeToString(txID)
 	_, ok := c.cache[txIDStr]
 	return ok
 }
 
+// Size returns the number of Transactions in the TransactionCache
 func (c *TransactionCache) Size() int {
 	return len(c.cache)
 }
