@@ -10,7 +10,7 @@ import (
 	"github.com/fahyjo/blockchain/consensus"
 	"github.com/fahyjo/blockchain/crypto"
 	n "github.com/fahyjo/blockchain/node"
-	"github.com/fahyjo/blockchain/peer"
+	"github.com/fahyjo/blockchain/peers"
 	"github.com/fahyjo/blockchain/transactions"
 	"github.com/fahyjo/blockchain/utxos"
 	"go.uber.org/zap"
@@ -68,7 +68,7 @@ func main() {
 
 	// make caches
 	var (
-		peerCache         = peer.NewPeerCache()
+		peerCache         = peers.NewPeerCache()
 		blockCache        = blocks.NewBlockCache()
 		transactionsCache = transactions.NewTransactionCache()
 		cache             = n.NewCache(peerCache, blockCache, transactionsCache)

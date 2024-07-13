@@ -9,7 +9,7 @@ import (
 	"github.com/fahyjo/blockchain/blocks"
 	"github.com/fahyjo/blockchain/consensus"
 	"github.com/fahyjo/blockchain/crypto"
-	"github.com/fahyjo/blockchain/peer"
+	"github.com/fahyjo/blockchain/peers"
 	proto "github.com/fahyjo/blockchain/proto"
 	"github.com/fahyjo/blockchain/transactions"
 	"github.com/fahyjo/blockchain/utxos"
@@ -62,12 +62,12 @@ func NewNode(
 func (n *Node) Start(peerAddrs []string) error {
 	errChan := make(chan error, 2)
 
-	n.logger.Info("Starting peer discovery go routine", zap.Strings("peers", peerAddrs))
+	n.logger.Info("Starting peers discovery go routine", zap.Strings("peers", peerAddrs))
 
 	go func(peerAddrs []string, errCh chan error) {
 		err := n.peerDiscovery(peerAddrs)
 		if err != nil {
-			n.logger.Error("Error in start peer discovery, exiting", zap.Error(err))
+			n.logger.Error("Error in start peers discovery, exiting", zap.Error(err))
 			errCh <- err
 			return
 		}
@@ -902,7 +902,7 @@ func (n *Node) HandleHandshake(ctx context.Context, peerMsg *proto.Handshake) (*
 		Height:          n.Height,
 	}
 
-	// checks that we do not already know this peer
+	// checks that we do not already know this peers
 	seen := n.PeerCache.Has(peerAddr)
 	if seen {
 		return msg, nil
@@ -913,28 +913,28 @@ func (n *Node) HandleHandshake(ctx context.Context, peerMsg *proto.Handshake) (*
 		return msg, nil
 	}
 
-	n.logger.Info("Received new handshake, dialing peer", zap.String("peer", peerAddr))
+	n.logger.Info("Received new handshake, dialing peers", zap.String("peers", peerAddr))
 
-	// dial peer
+	// dial peers
 	client, err := n.dialPeer(peerAddr)
 	if err != nil {
-		n.logger.Error("Error dialing peer", zap.Error(err), zap.String("peer", peerAddr))
+		n.logger.Error("Error dialing peers", zap.Error(err), zap.String("peers", peerAddr))
 		return msg, nil
 	}
 
-	n.logger.Info("Successfully dialed peer, adding peer", zap.String("peer", peerAddr))
+	n.logger.Info("Successfully dialed peers, adding peers", zap.String("peers", peerAddr))
 
-	// add peer
-	p := peer.NewPeer(peerMsg.Height, client)
+	// add peers
+	p := peers.NewPeer(peerMsg.Height, client)
 	n.Cache.PeerCache.Put(peerAddr, p)
 
-	n.logger.Info("Successfully added peer, starting peer discovery go routine", zap.String("peer", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
+	n.logger.Info("Successfully added peers, starting peers discovery go routine", zap.String("peers", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
 
-	// start peer discovery go routine
+	// start peers discovery go routine
 	go func() {
 		err := n.peerDiscovery(peerMsg.PeerListenAddrs)
 		if err != nil {
-			n.logger.Error("Error in peer discover", zap.Error(err), zap.String("peer", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
+			n.logger.Error("Error in peers discover", zap.Error(err), zap.String("peers", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
 		}
 	}()
 
@@ -946,16 +946,16 @@ func (n *Node) HandleHandshake(ctx context.Context, peerMsg *proto.Handshake) (*
 func (n *Node) peerDiscovery(peerAddrs []string) error {
 	for _, peerAddr := range peerAddrs {
 		seen := n.PeerCache.Has(peerAddr)
-		// checks we do not already know this peer
+		// checks we do not already know this peers
 		if seen {
 			continue
 		}
-		// checks peer addr is not our addr
+		// checks peers addr is not our addr
 		if peerAddr == n.ListenAddr {
 			continue
 		}
 
-		// dial peer
+		// dial peers
 		client, err := n.dialPeer(peerAddr)
 		if err != nil {
 			return err
@@ -967,15 +967,15 @@ func (n *Node) peerDiscovery(peerAddrs []string) error {
 			Height:          n.Height,
 		}
 
-		// invoke peer handshake method
+		// invoke peers handshake method
 		peerMsg, err := client.HandleHandshake(context.Background(), msg)
 		if err != nil {
 			continue
 		}
 
-		// add new peer
-		n.logger.Info("Adding peer", zap.String("peer", peerAddr))
-		p := peer.NewPeer(peerMsg.Height, client)
+		// add new peers
+		n.logger.Info("Adding peers", zap.String("peers", peerAddr))
+		p := peers.NewPeer(peerMsg.Height, client)
 		n.Cache.PeerCache.Put(peerAddr, p)
 
 		err = n.peerDiscovery(peerMsg.PeerListenAddrs)
