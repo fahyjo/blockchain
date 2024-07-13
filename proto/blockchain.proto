@@ -2,12 +2,23 @@ syntax = "proto3";
 
 option go_package = "github.com/fahyjo/blockchain";
 
+import "google/protobuf/empty.proto";
+
 service Node {
   rpc HandleHandshake(Handshake) returns (Handshake);
   rpc HandleTransaction(Transaction) returns (Ack);
   rpc HandleBlock(Block) returns (Ack);
   rpc HandlePreVote(PreVote) returns (Ack);
   rpc HandlePreCommit(PreCommit) returns (Ack);
+  rpc DumpBlockStore(google.protobuf.Empty) returns (Dump);
+  rpc DumpBlockList(google.protobuf.Empty) returns (Dump);
+  rpc DumpTransactionStore(google.protobuf.Empty) returns (Dump);
+  rpc DumpUTXOSet(google.protobuf.Empty) returns (Dump);
+}
+
+message Dump {
+  int64 size = 1;
+  repeated bytes ids = 2;
 }
 
 message Handshake {
@@ -18,6 +29,7 @@ message Handshake {
 
 message Ack {
 }
+
 message PreVote {
   bytes blockID = 1;
   bytes sig = 2;

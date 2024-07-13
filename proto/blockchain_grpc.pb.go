@@ -8,6 +8,7 @@ package blockchain
 
 import (
 	context "context"
+	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -19,11 +20,15 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Node_HandleHandshake_FullMethodName   = "/Node/HandleHandshake"
-	Node_HandleTransaction_FullMethodName = "/Node/HandleTransaction"
-	Node_HandleBlock_FullMethodName       = "/Node/HandleBlock"
-	Node_HandlePreVote_FullMethodName     = "/Node/HandlePreVote"
-	Node_HandlePreCommit_FullMethodName   = "/Node/HandlePreCommit"
+	Node_HandleHandshake_FullMethodName      = "/Node/HandleHandshake"
+	Node_HandleTransaction_FullMethodName    = "/Node/HandleTransaction"
+	Node_HandleBlock_FullMethodName          = "/Node/HandleBlock"
+	Node_HandlePreVote_FullMethodName        = "/Node/HandlePreVote"
+	Node_HandlePreCommit_FullMethodName      = "/Node/HandlePreCommit"
+	Node_DumpBlockStore_FullMethodName       = "/Node/DumpBlockStore"
+	Node_DumpBlockList_FullMethodName        = "/Node/DumpBlockList"
+	Node_DumpTransactionStore_FullMethodName = "/Node/DumpTransactionStore"
+	Node_DumpUTXOSet_FullMethodName          = "/Node/DumpUTXOSet"
 )
 
 // NodeClient is the client API for Node service.
@@ -35,6 +40,10 @@ type NodeClient interface {
 	HandleBlock(ctx context.Context, in *Block, opts ...grpc.CallOption) (*Ack, error)
 	HandlePreVote(ctx context.Context, in *PreVote, opts ...grpc.CallOption) (*Ack, error)
 	HandlePreCommit(ctx context.Context, in *PreCommit, opts ...grpc.CallOption) (*Ack, error)
+	DumpBlockStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error)
+	DumpBlockList(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error)
+	DumpTransactionStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error)
+	DumpUTXOSet(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error)
 }
 
 type nodeClient struct {
@@ -95,6 +104,46 @@ func (c *nodeClient) HandlePreCommit(ctx context.Context, in *PreCommit, opts ..
 	return out, nil
 }
 
+func (c *nodeClient) DumpBlockStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Dump)
+	err := c.cc.Invoke(ctx, Node_DumpBlockStore_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeClient) DumpBlockList(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Dump)
+	err := c.cc.Invoke(ctx, Node_DumpBlockList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeClient) DumpTransactionStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Dump)
+	err := c.cc.Invoke(ctx, Node_DumpTransactionStore_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeClient) DumpUTXOSet(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Dump)
+	err := c.cc.Invoke(ctx, Node_DumpUTXOSet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodeServer is the server API for Node service.
 // All implementations must embed UnimplementedNodeServer
 // for forward compatibility
@@ -104,6 +153,10 @@ type NodeServer interface {
 	HandleBlock(context.Context, *Block) (*Ack, error)
 	HandlePreVote(context.Context, *PreVote) (*Ack, error)
 	HandlePreCommit(context.Context, *PreCommit) (*Ack, error)
+	DumpBlockStore(context.Context, *empty.Empty) (*Dump, error)
+	DumpBlockList(context.Context, *empty.Empty) (*Dump, error)
+	DumpTransactionStore(context.Context, *empty.Empty) (*Dump, error)
+	DumpUTXOSet(context.Context, *empty.Empty) (*Dump, error)
 	mustEmbedUnimplementedNodeServer()
 }
 
@@ -125,6 +178,18 @@ func (UnimplementedNodeServer) HandlePreVote(context.Context, *PreVote) (*Ack, e
 }
 func (UnimplementedNodeServer) HandlePreCommit(context.Context, *PreCommit) (*Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HandlePreCommit not implemented")
+}
+func (UnimplementedNodeServer) DumpBlockStore(context.Context, *empty.Empty) (*Dump, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DumpBlockStore not implemented")
+}
+func (UnimplementedNodeServer) DumpBlockList(context.Context, *empty.Empty) (*Dump, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DumpBlockList not implemented")
+}
+func (UnimplementedNodeServer) DumpTransactionStore(context.Context, *empty.Empty) (*Dump, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DumpTransactionStore not implemented")
+}
+func (UnimplementedNodeServer) DumpUTXOSet(context.Context, *empty.Empty) (*Dump, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DumpUTXOSet not implemented")
 }
 func (UnimplementedNodeServer) mustEmbedUnimplementedNodeServer() {}
 
@@ -229,6 +294,78 @@ func _Node_HandlePreCommit_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Node_DumpBlockStore_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).DumpBlockStore(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_DumpBlockStore_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).DumpBlockStore(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Node_DumpBlockList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).DumpBlockList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_DumpBlockList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).DumpBlockList(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Node_DumpTransactionStore_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).DumpTransactionStore(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_DumpTransactionStore_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).DumpTransactionStore(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Node_DumpUTXOSet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).DumpUTXOSet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_DumpUTXOSet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).DumpUTXOSet(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Node_ServiceDesc is the grpc.ServiceDesc for Node service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -255,6 +392,22 @@ var Node_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HandlePreCommit",
 			Handler:    _Node_HandlePreCommit_Handler,
+		},
+		{
+			MethodName: "DumpBlockStore",
+			Handler:    _Node_DumpBlockStore_Handler,
+		},
+		{
+			MethodName: "DumpBlockList",
+			Handler:    _Node_DumpBlockList_Handler,
+		},
+		{
+			MethodName: "DumpTransactionStore",
+			Handler:    _Node_DumpTransactionStore_Handler,
+		},
+		{
+			MethodName: "DumpUTXOSet",
+			Handler:    _Node_DumpUTXOSet_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

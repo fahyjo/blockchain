@@ -17,27 +17,28 @@ Consensus
 
 
 NEXT STEPS
-- code review - refactor, test, document
+- code review (config, consensus, node, top)
 - genesis block
 - triggers (new tx, new block, dump stores, mempool, caches ...)
 - testing
 - might be useful to exchange public keys in handshake, refactor peer cache, other caches
+
+Testing
+- bash script takes in number of nodes
+- spins up n nodes - gives each node the index and the number of validators
+    - each node takes index and derives address, peers, db path, validators, and reads in own keys
+- runs controller - controller generates and sends config
+- triggers behavior
+- runs tests
+- cleans up log files/db files if passes, otherwise leaves them
 
 Caches
 - transaction cache is good
 - block ccahce refactor to match transactgion cache'
 - maybe add more to peer cache
 
-Logging
-- all logging at top level
-- info for moving between steps
-- error when encounter error
-- break out behavioral units to helper functions, they can log errors, but not info since one step
-- all validation breakdouts are considered top level -> error logging in there is fine
+
 
 Design Decisions
 - validator node will broadcast commits/votes to whole network
 - validators only broadcast positive pre-vote/pre-commit messages
-
-Problems
-- blockStore.Put

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"net"
 
 	"github.com/fahyjo/blockchain/blocks"
@@ -16,6 +17,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Node struct {
@@ -993,4 +995,52 @@ func (n *Node) dialPeer(peerAddr string) (proto.NodeClient, error) {
 	}
 	client := proto.NewNodeClient(conn)
 	return client, nil
+}
+
+func (n *Node) DumpBlockStore(ctx context.Context, protoEmpty *emptypb.Empty) (*proto.Dump, error) {
+	size, blockIDs, err := n.BlockStore.Dump()
+	if err != nil {
+		return nil, fmt.Errorf("error dumping block store: %w", err)
+	}
+	protoDump := &proto.Dump{
+		Size: int64(size),
+		Ids:  blockIDs,
+	}
+	return protoDump, nil
+}
+
+func (n *Node) DumpBlockList(ctx context.Context, protoEmpty *emptypb.Empty) (*proto.Dump, error) {
+	size, blockIDs, err := n.BlockList.Dump()
+	if err != nil {
+		return nil, fmt.Errorf("error dumping block list: %w", err)
+	}
+	protoDump := &proto.Dump{
+		Size: int64(size),
+		Ids:  blockIDs,
+	}
+	return protoDump, nil
+}
+
+func (n *Node) DumpTransactionStore(ctx context.Context, protoEmpty *emptypb.Empty) (*proto.Dump, error) {
+	size, transactionIDs, err := n.TransactionStore.Dump()
+	if err != nil {
+		return nil, fmt.Errorf("error dumping transaction store: %w", err)
+	}
+	protoDump := &proto.Dump{
+		Size: int64(size),
+		Ids:  transactionIDs,
+	}
+	return protoDump, nil
+}
+
+func (n *Node) DumpUTXOSet(ctx context.Context, protoEmpty *emptypb.Empty) (*proto.Dump, error) {
+	size, utxoIDs, err := n.UtxoStore.Dump()
+	if err != nil {
+		return nil, fmt.Errorf("error dumping utxo set: %w", err)
+	}
+	protoDump := &proto.Dump{
+		Size: int64(size),
+		Ids:  utxoIDs,
+	}
+	return protoDump, nil
 }

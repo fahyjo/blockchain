@@ -9,9 +9,10 @@ import (
 
 // BlockStore stores all blocks committed to the blockchain in a key-value store
 type BlockStore interface {
-	Get([]byte) (*Block, error) // Get retrieves the Block with the given block id, returns an error if the Block with the given block id is not found
-	Put([]byte, *Block) error   // Put maps the given block id to the given Block
-	Delete([]byte) error        // Delete removes the Block with the given block id, returns an error if the Block with the given block id is not found
+	Get([]byte) (*Block, error)   // Get retrieves the Block with the given block id, returns an error if the Block with the given block id is not found
+	Put([]byte, *Block) error     // Put maps the given block id to the given Block
+	Delete([]byte) error          // Delete removes the Block with the given block id, returns an error if the Block with the given block id is not found
+	Dump() (int, [][]byte, error) // Dump returns the number of blocks in the blockchain and the id of each Block in the blockchain
 }
 
 // MemoryBlockStore is an in-memory implementation of BlockStore
@@ -49,6 +50,19 @@ func (s *MemoryBlockStore) Delete(blockID []byte) error {
 	}
 	delete(s.db, blockIDStr)
 	return nil
+}
+
+func (s *MemoryBlockStore) Dump() (int, [][]byte, error) {
+	size := len(s.db)
+	var blockIDs [][]byte
+	for blockIDStr := range s.db {
+		blockID, err := hex.DecodeString(blockIDStr)
+		if err != nil {
+			return 0, nil, err
+		}
+		blockIDs = append(blockIDs, blockID)
+	}
+	return size, blockIDs, nil
 }
 
 // LevelsBlockStore uses LevelDB to store blocks
@@ -108,4 +122,17 @@ func (s *LevelsBlockStore) Delete(blockID []byte) error {
 	}
 
 	return nil
+}
+
+func (s *LevelsBlockStore) Dump() (int, [][]byte, error) {
+	iter := s.db.NewIterator(nil, nil)
+	defer iter.Release()
+
+	size := 0
+	var blockIDs [][]byte
+	for iter.Next() {
+		size++
+		blockIDs = append(blockIDs, iter.Key())
+	}
+	return size, blockIDs, nil
 }

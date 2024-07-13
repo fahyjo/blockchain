@@ -12,6 +12,7 @@ type UTXOStore interface {
 	Get([]byte) (*UTXO, error)    // Get retrieves the UTXO with the given utxo ID, returns error if the UTXO is not found
 	Put([]byte, *UTXO) error      // Put maps the given utxo ID to the given UTXO
 	Delete([]byte) (*UTXO, error) // Delete removes the UTXO with the given utxo ID, returns the removed UTXO, and returns an error if the UTXO is not found
+	Dump() (int, [][]byte, error) // Dump returns the number of utxos in the utxo set and the id of each utxo in the utxo set
 }
 
 // MemoryUTXOStore is an in-memory UTXOStore implementation
@@ -49,6 +50,19 @@ func (s *MemoryUTXOStore) Delete(utxoID []byte) (*UTXO, error) {
 	}
 	delete(s.db, utxoIDStr)
 	return utxo, nil
+}
+
+func (s *MemoryUTXOStore) Dump() (int, [][]byte, error) {
+	size := len(s.db)
+	var utxoIDs [][]byte
+	for utxoIDStr := range s.db {
+		utxoID, err := hex.DecodeString(utxoIDStr)
+		if err != nil {
+			return 0, nil, err
+		}
+		utxoIDs = append(utxoIDs, utxoID)
+	}
+	return size, utxoIDs, nil
 }
 
 // LevelsUTXOStore uses LevelDB to store utxos
@@ -101,4 +115,17 @@ func (s *LevelsUTXOStore) Delete(utxoID []byte) (*UTXO, error) {
 		return nil, err
 	}
 	return utxo, err
+}
+
+func (s *LevelsUTXOStore) Dump() (int, [][]byte, error) {
+	iter := s.db.NewIterator(nil, nil)
+	defer iter.Release()
+
+	size := 0
+	var utxoIDs [][]byte
+	for iter.Next() {
+		size++
+		utxoIDs = append(utxoIDs, iter.Key())
+	}
+	return size, utxoIDs, nil
 }

@@ -59,3 +59,16 @@ func (l *BlockList) Delete(blockID []byte) error {
 	}
 	return fmt.Errorf("error deleting blockID from block list: block id %s not found", hex.EncodeToString(blockID))
 }
+
+// Dump returns the number of blocks in the blockchain and the id of each Block in the blockchain
+func (l *BlockList) Dump() (int, [][]byte, error) {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	size := len(l.list)
+	var blockIDs [][]byte
+	for _, blockID := range l.list {
+		blockIDs = append(blockIDs, blockID)
+	}
+	return size, blockIDs, nil
+}
