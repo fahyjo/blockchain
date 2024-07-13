@@ -9,17 +9,17 @@ import (
 
 // TransactionStore stores all committed transactions in a key-value store
 type TransactionStore interface {
-	Get([]byte) (*Transaction, error) // Get retrieves the Transaction with the given transaction id, returns error if the Transactions is not found
+	Get([]byte) (*Transaction, error) // Get retrieves the Transaction with the given transaction id, returns error if the Transaction with the given transaction id is not found
 	Put([]byte, *Transaction) error   // Put maps the given transaction id to the given Transaction
-	Delete([]byte) error              // Delete removes the Transaction with the given transaction id, returns an error if the Transaction is not found
+	Delete([]byte) error              // Delete removes the Transaction with the given transaction id, returns an error if the Transaction with the given transaction id is not found
 }
 
 // MemoryTransactionStore is an in-memory TransactionStore implementation
 type MemoryTransactionStore struct {
-	db map[string]*Transaction //db maps the transaction id (encoded as a string) to the transaction
+	db map[string]*Transaction // db maps the transaction id (encoded as a string) to the transaction
 }
 
-// NewMemoryTransactionStore creates a new MemoryTransactionStore
+// NewMemoryTransactionStore creates a new MemoryTransactionStore struct
 func NewMemoryTransactionStore() TransactionStore {
 	return &MemoryTransactionStore{
 		db: make(map[string]*Transaction),
@@ -53,10 +53,10 @@ func (s *MemoryTransactionStore) Delete(txID []byte) error {
 
 // LevelsTransactionStore uses LevelDB to store transactions
 type LevelsTransactionStore struct {
-	db *leveldb.DB
+	db *leveldb.DB // db client to interact with LevelDB store
 }
 
-// NewLevelsTransactionStore creates a new LevelsTransactionStore at the given path
+// NewLevelsTransactionStore creates a new LevelsTransactionStore struct at the given path
 func NewLevelsTransactionStore(path string) (TransactionStore, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
@@ -101,9 +101,11 @@ func (s *LevelsTransactionStore) Delete(txID []byte) error {
 	if !ok {
 		return fmt.Errorf("error deleting from transaction store: transaction %s not found", hex.EncodeToString(txID))
 	}
+
 	err = s.db.Delete(txID, nil)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

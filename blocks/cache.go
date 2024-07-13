@@ -1,16 +1,17 @@
 package blocks
 
 import (
-	"encoding/hex"
 	"fmt"
 	"sync"
 )
 
+// BlockCache keeps track of all block ids we have seen
 type BlockCache struct {
-	lock  sync.RWMutex
-	cache map[string]bool
+	lock  sync.RWMutex    // lock read/write mutex that ensures BlockCache is concurrent-safe
+	cache map[string]bool // cache holds all the block ids we have seen
 }
 
+// NewBlockCache creates a new BlockCache struct
 func NewBlockCache() *BlockCache {
 	return &BlockCache{
 		lock:  sync.RWMutex{},
@@ -18,31 +19,31 @@ func NewBlockCache() *BlockCache {
 	}
 }
 
-func (c *BlockCache) Get(blockID []byte) (bool, error) {
+// Get retrieves the Block with the given block id, returns an error if the Block with the given block id is not found
+func (c *BlockCache) Get(blockIDStr string) (bool, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	blockIDStr := hex.EncodeToString(blockID)
 	b, ok := c.cache[blockIDStr]
 	if !ok {
-		return false, fmt.Errorf("block cache miss: %s", blockIDStr)
+		return false, fmt.Errorf("error getting from block cache: block %s not found", blockIDStr)
 	}
 	return b, nil
 }
 
-func (c *BlockCache) Put(blockID []byte, b bool) {
+// Put adds the given block id to the BlockCache
+func (c *BlockCache) Put(blockIDStr string, b bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	blockIDStr := hex.EncodeToString(blockID)
 	c.cache[blockIDStr] = b
 }
 
-func (c *BlockCache) Has(blockID []byte) bool {
+// Has returns true if the given block id is in the BlockCache, returns false otherwise
+func (c *BlockCache) Has(blockIDStr string) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	blockIDStr := hex.EncodeToString(blockID)
 	_, ok := c.cache[blockIDStr]
 	return ok
 }

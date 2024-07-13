@@ -10,7 +10,7 @@ type TransactionCache struct {
 	cache map[string]bool // cache holds all the transaction ids we have seen
 }
 
-// NewTransactionCache creates a new TransactionCache
+// NewTransactionCache creates a new TransactionCache struct
 func NewTransactionCache() *TransactionCache {
 	return &TransactionCache{
 		lock:  sync.RWMutex{},
@@ -18,7 +18,7 @@ func NewTransactionCache() *TransactionCache {
 	}
 }
 
-// Put adds the Transaction with the given transaction id to the TransactionCache
+// Put adds the given transaction id to the TransactionCache
 func (c *TransactionCache) Put(txIDStr string, b bool) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -26,7 +26,7 @@ func (c *TransactionCache) Put(txIDStr string, b bool) {
 	c.cache[txIDStr] = b
 }
 
-// Has returns true if the Transaction with the given transaction id is in the TransactionCache, and false otherwise
+// Has returns true if the given transaction id is in the TransactionCache, returns false otherwise
 func (c *TransactionCache) Has(txIDStr string) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()

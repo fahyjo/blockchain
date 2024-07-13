@@ -4,11 +4,13 @@ import (
 	"crypto/sha256"
 )
 
+// Transaction consumes utxos and produces new utxos
 type Transaction struct {
-	Inputs  []*Input
-	Outputs []*Output
+	Inputs  []*Input  // Inputs specifies the utxos to be spent
+	Outputs []*Output // Outputs produces new utxos and specifies their owners
 }
 
+// NewTransaction creates a Transaction struct
 func NewTransaction(inputs []*Input, outputs []*Output) *Transaction {
 	return &Transaction{
 		Inputs:  inputs,
@@ -16,6 +18,8 @@ func NewTransaction(inputs []*Input, outputs []*Output) *Transaction {
 	}
 }
 
+// Hash hashes the given Transaction
+// To hash a Transaction we set the Input unlocking scripts to nil, hash the transaction, and then restore the Input unlocking scripts
 func (tx *Transaction) Hash() ([]byte, error) {
 	var unlockingScripts []*UnlockingScript
 	for i, input := range tx.Inputs {

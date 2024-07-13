@@ -9,6 +9,7 @@ import (
 	"github.com/fahyjo/blockchain/transactions"
 )
 
+// EncodeBlock encodes a Block into a byte slice
 func EncodeBlock(b *Block) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -19,6 +20,7 @@ func EncodeBlock(b *Block) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// DecodeBlock decodes a byte slice into a Block
 func DecodeBlock(b []byte) (*Block, error) {
 	var block Block
 	dec := gob.NewDecoder(bytes.NewBuffer(b))
@@ -29,6 +31,7 @@ func DecodeBlock(b []byte) (*Block, error) {
 	return &block, nil
 }
 
+// EncodeHeader encodes a Header into a byte slice
 func EncodeHeader(h *Header) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -39,6 +42,7 @@ func EncodeHeader(h *Header) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// ConvertProtoBlock converts the given proto block into a domain Block
 func ConvertProtoBlock(protoBlock *proto.Block) *Block {
 	header := convertProtoHeader(protoBlock.Header)
 	var txs []*transactions.Transaction
@@ -48,4 +52,9 @@ func ConvertProtoBlock(protoBlock *proto.Block) *Block {
 	sig := crypto.NewSignature(protoBlock.Sig)
 	pubKey := crypto.NewPublicKey(protoBlock.PubKey)
 	return NewBlock(header, txs, sig, pubKey)
+}
+
+// convertProtoHeader converts the given proto header into a domain Header
+func convertProtoHeader(protoHeader *proto.Header) *Header {
+	return NewHeader(protoHeader.Height, protoHeader.PrevHash, protoHeader.RootHash, protoHeader.TimeStamp)
 }
