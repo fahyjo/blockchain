@@ -125,12 +125,12 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 	blockIDStr := hex.EncodeToString(blockID)
 
 	// check if already seen this block
-	ok := n.BlockCache.Has(blockID)
+	ok := n.BlockCache.Has(blockIDStr)
 	if ok {
 		n.logger.Info("Received block already in cache", zap.String("blockID", blockIDStr))
 		return ack, nil
 	} else {
-		n.BlockCache.Put(blockID, true)
+		n.BlockCache.Put(blockIDStr, true)
 	}
 
 	n.logger.Info("Received new block, validating block ...", zap.String("blockID", blockIDStr))
@@ -274,7 +274,7 @@ func (n *Node) validateBlock(block *blocks.Block, blockID []byte) bool {
 }
 
 func (n *Node) broadcastBlock(protoBlock *proto.Block) error {
-	for _, p := range n.PeerCache.Cache {
+	for _, p := range n.PeerCache.Cache() {
 		client := p.Client
 		_, err := client.HandleBlock(context.Background(), protoBlock)
 		if err != nil {
@@ -285,7 +285,7 @@ func (n *Node) broadcastBlock(protoBlock *proto.Block) error {
 }
 
 func (n *Node) broadcastPreVote(protoPreVote *proto.PreVote) error {
-	for _, p := range n.PeerCache.Cache {
+	for _, p := range n.PeerCache.Cache() {
 		client := p.Client
 		_, err := client.HandlePreVote(context.Background(), protoPreVote)
 		if err != nil {
@@ -296,7 +296,7 @@ func (n *Node) broadcastPreVote(protoPreVote *proto.PreVote) error {
 }
 
 func (n *Node) broadcastPreCommit(protoPreCommit *proto.PreCommit) error {
-	for _, p := range n.PeerCache.Cache {
+	for _, p := range n.PeerCache.Cache() {
 		client := p.Client
 		_, err := client.HandlePreCommit(context.Background(), protoPreCommit)
 		if err != nil {
@@ -527,7 +527,7 @@ func (n *Node) commitBlock() bool {
 	blockIDStr := hex.EncodeToString(blockID)
 
 	// add block to block store
-	err := n.BlockStore.Put(block)
+	err := n.BlockStore.Put(blockID, block)
 	if err != nil {
 		n.logger.Error("Error committing block: unable to add block to block store", zap.String("blockID", blockIDStr), zap.Error(err))
 		return false
@@ -536,16 +536,7 @@ func (n *Node) commitBlock() bool {
 	n.logger.Info("Successfully added block to block store, adding block to block list ...", zap.String("blockID", blockIDStr))
 
 	// add block to block list
-	err = n.BlockList.Add(blockID)
-	if err != nil {
-		n.logger.Error("Error committing block: unable to add block to block list, walking back commit block ...", zap.String("blockID", blockIDStr), zap.Error(err))
-		ok := n.walkBackCommitBlock(blockID, true, false)
-		if !ok {
-			return false
-		}
-		n.logger.Info("Successfully walked back commit block, exiting ...", zap.String("blockID", blockIDStr))
-		return false
-	}
+	n.BlockList.Add(blockID)
 
 	n.logger.Info("Successfully added block to block list, committing transactions ...", zap.String("blockID", blockIDStr))
 
@@ -712,14 +703,15 @@ func (n *Node) cleanMempool() bool {
 		txIDStr := hex.EncodeToString(txID)
 
 		// remove committed transaction from mempool
-		if n.Mempool.HasTransaction(txID) {
+		if n.Mempool.HasTransaction(txIDStr) {
 			n.Mempool.DeleteTransaction(txIDStr)
 		}
 		// remove consumed utxos from mempool
 		for _, input := range tx.Inputs {
 			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
-			if n.Mempool.HasUTXO(utxoID) {
-				n.Mempool.DeleteUTXO(utxoID)
+			utxoIDStr := hex.EncodeToString(utxoID)
+			if n.Mempool.HasUTXO(utxoIDStr) {
+				n.Mempool.DeleteUTXO(utxoIDStr)
 			}
 		}
 	}
@@ -735,11 +727,11 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	ack := &proto.Ack{}
 
 	// check if already seen this transaction
-	ok := n.TransactionCache.Has(txID)
+	ok := n.TransactionCache.Has(txIDStr)
 	if ok {
 		return ack, nil
 	}
-	n.TransactionCache.Put(txID, true)
+	n.TransactionCache.Put(txIDStr, true)
 
 	n.logger.Info("Received new transaction, validating transaction ...", zap.String("txID", txIDStr))
 
@@ -752,14 +744,15 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	n.logger.Info("Successfully validated transaction, adding to mempool", zap.String("txID", txIDStr))
 
 	// add valid transaction to mempool
-	n.Mempool.PutTransaction(txID, tx)
+	n.Mempool.PutTransaction(txIDStr, tx)
 
 	n.logger.Info("Successfully added transaction to mempool, marking ref utxos as claimed", zap.String("txID", txIDStr), zap.Int("mempool size", n.Mempool.TransactionsSize()))
 
 	// mark all referenced utxos as mempool claimed
 	for _, input := range tx.Inputs {
 		utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
-		n.Mempool.PutUTXO(utxoID, true)
+		utxoIDStr := hex.EncodeToString(utxoID)
+		n.Mempool.PutUTXO(utxoIDStr, true)
 	}
 
 	n.logger.Info("Successfully marked ref utxos, broadcasting transaction", zap.String("txID", txIDStr))
@@ -830,7 +823,7 @@ func (n *Node) validateTransactionInputs(inputs []*transactions.Input, txID []by
 
 		// checks that the referenced utxo is not claimed by other transaction already in mempool
 		if checkMempool {
-			if n.Mempool.HasUTXO(utxoID) {
+			if n.Mempool.HasUTXO(utxoIDStr) {
 				n.logger.Error("Error validating transaction: transaction contains mempool claimed utxo",
 					zap.String("txID", txIDStr),
 					zap.Int("inputIndex", i),
@@ -886,7 +879,7 @@ func (n *Node) validateTransactionOutputs(inputs []*transactions.Input, outputs 
 }
 
 func (n *Node) broadcastTransaction(protoTx *proto.Transaction) error {
-	for _, p := range n.PeerCache.Cache {
+	for _, p := range n.PeerCache.Cache() {
 		client := p.Client
 		_, err := client.HandleTransaction(context.Background(), protoTx)
 		if err != nil {
