@@ -65,6 +65,7 @@ func (c *PeerCache) GetPeerAddrs() []string {
 	return peerAddrs
 }
 
+// Cache returns the PeerCache cache
 func (c *PeerCache) Cache() map[string]*Peer {
 	return c.cache
 }
