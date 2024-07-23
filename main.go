@@ -64,7 +64,7 @@ func main() {
 	amValidator := consensusConfig.AmValidator
 	validators := consensusConfig.Validators
 	round := consensus.NewRound(validators[0])
-	consensus := consensus.NewConsensus(amValidator, validators, 0, round)
+	cons := consensus.NewConsensus(amValidator, validators, 0, round)
 
 	// make caches
 	var (
@@ -87,7 +87,7 @@ func main() {
 	mempool := transactions.NewMempool()
 
 	// make and start node
-	node := n.NewNode(listenAddr, 0, keys, consensus, cache, store, blockList, mempool, logger)
+	node := n.NewNode(listenAddr, keys, cons, cache, store, blockList, mempool, logger)
 	err = node.Start(peerAddrs)
 	if err != nil {
 		logger.Fatal("Failed to start node", zap.Error(err))

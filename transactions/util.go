@@ -3,6 +3,8 @@ package transactions
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/hex"
+	"strconv"
 
 	"github.com/fahyjo/blockchain/crypto"
 	proto "github.com/fahyjo/blockchain/proto"
@@ -119,4 +121,18 @@ func convertLockingScript(lockingScript *LockingScript) *proto.LockingScript {
 	return &proto.LockingScript{
 		PubKeyHash: lockingScript.PubKeyHash,
 	}
+}
+
+// CreateUTXOID creates an utxo id by concatenating and hashing the txID and the utxoIndex.
+// The txID specifies the transaction that produced the utxo.
+// The utxoIndex specifies the index of the transaction output that produced the utxo.
+func CreateUTXOID(txID []byte, utxoIndex int64) []byte {
+	txIDStr := hex.EncodeToString(txID)
+	utxoIndexStr := strconv.Itoa(int(utxoIndex))
+
+	var buffer bytes.Buffer
+	buffer.WriteString(txIDStr)
+	buffer.WriteString(":")
+	buffer.WriteString(utxoIndexStr)
+	return buffer.Bytes()
 }

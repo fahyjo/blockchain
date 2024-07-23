@@ -57,7 +57,7 @@ func NewNode(
 func (n *Node) Start(peerAddrs []string) error {
 	errChan := make(chan error, 2)
 
-	n.logger.Info("Starting peers discovery go routine", zap.Strings("peers", peerAddrs))
+	n.logger.Info("Starting peer discovery go routine", zap.Strings("peers", peerAddrs))
 
 	go func(peerAddrs []string, errCh chan error) {
 		err := n.peerDiscovery(peerAddrs)

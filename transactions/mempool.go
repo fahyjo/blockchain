@@ -4,8 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sync"
-
-	"github.com/fahyjo/blockchain/utxos"
 )
 
 // Mempool keeps track of all the currently pending transactions and the utxos that they claim
@@ -78,7 +76,7 @@ func (m *Mempool) Cleanse() error {
 
 	for txIDStr, tx := range m.transactions {
 		for _, input := range tx.Inputs {
-			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
+			utxoID := CreateUTXOID(input.TxID, input.UTXOIndex)
 			utxoIDStr := hex.EncodeToString(utxoID)
 			ok := m.HasUTXO(utxoIDStr)
 			if !ok {
