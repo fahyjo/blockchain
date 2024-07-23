@@ -21,26 +21,20 @@ import (
 )
 
 type Node struct {
-	ListenAddr string
-	Height     int64
-
-	*crypto.Keys
-
-	consensus *consensus.Consensus
-
-	*Cache
-	*Store
-	BlockList *blocks.BlockList
-	Mempool   *transactions.Mempool
-
-	logger *zap.Logger
+	listenAddr string
+	keys       *crypto.Keys
+	consensus  *consensus.Consensus
+	cache      *Cache
+	store      *Store
+	blockList  *blocks.BlockList
+	mempool    *transactions.Mempool
+	logger     *zap.Logger
 
 	proto.UnimplementedNodeServer
 }
 
 func NewNode(
 	listenAddr string,
-	height int64,
 	keys *crypto.Keys,
 	consensus *consensus.Consensus,
 	cache *Cache,
@@ -49,14 +43,13 @@ func NewNode(
 	mempool *transactions.Mempool,
 	logger *zap.Logger) *Node {
 	return &Node{
-		ListenAddr: listenAddr,
-		Height:     height,
-		Keys:       keys,
+		listenAddr: listenAddr,
+		keys:       keys,
 		consensus:  consensus,
-		Cache:      cache,
-		Store:      store,
-		BlockList:  blockList,
-		Mempool:    mempool,
+		cache:      cache,
+		store:      store,
+		blockList:  blockList,
+		mempool:    mempool,
 		logger:     logger,
 	}
 }
@@ -69,19 +62,19 @@ func (n *Node) Start(peerAddrs []string) error {
 	go func(peerAddrs []string, errCh chan error) {
 		err := n.peerDiscovery(peerAddrs)
 		if err != nil {
-			n.logger.Error("Error in start peers discovery, exiting", zap.Error(err))
+			n.logger.Error("Error in peer discovery, exiting", zap.Error(err))
 			errCh <- err
 			return
 		}
 	}(peerAddrs, errChan)
 
-	n.logger.Info("Starting gRPC go routine", zap.String("listenAddr", n.ListenAddr))
+	n.logger.Info("Starting gRPC go routine", zap.String("listenAddr", n.listenAddr))
 
 	go func(errCh chan error) {
 		grpcServer := grpc.NewServer()
 		proto.RegisterNodeServer(grpcServer, n)
 
-		lis, err := net.Listen("tcp", n.ListenAddr)
+		lis, err := net.Listen("tcp", n.listenAddr)
 		if err != nil {
 			n.logger.Error("Error creating tcp listener", zap.Error(err))
 			errCh <- err
@@ -106,7 +99,7 @@ func (n *Node) Start(peerAddrs []string) error {
 	}
 }
 
-func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto.Ack, error) {
+func (n *Node) HandleBlock(_ context.Context, protoBlock *proto.Block) (*proto.Ack, error) {
 	ack := &proto.Ack{}
 
 	// check that we are in the proposal phase
@@ -125,12 +118,12 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 	blockIDStr := hex.EncodeToString(blockID)
 
 	// check if already seen this block
-	ok := n.BlockCache.Has(blockIDStr)
+	ok := n.cache.BlockCache.Has(blockIDStr)
 	if ok {
 		n.logger.Info("Received block already in cache", zap.String("blockID", blockIDStr))
 		return ack, nil
 	} else {
-		n.BlockCache.Put(blockIDStr, true)
+		n.cache.BlockCache.Put(blockIDStr, true)
 	}
 
 	n.logger.Info("Received new block, validating block ...", zap.String("blockID", blockIDStr))
@@ -149,7 +142,7 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 		n.logger.Error("Error broadcasting block", zap.String("blockID", blockIDStr), zap.Error(err))
 	}
 
-	n.logger.Info("Broadcasted block, moving to preVote phase ...", zap.String("blockID", blockIDStr))
+	n.logger.Info("Broadcast block, moving to preVote phase ...", zap.String("blockID", blockIDStr))
 
 	// move to preVote phase
 	n.consensus.CurrentRound.BlockID = blockID
@@ -160,16 +153,16 @@ func (n *Node) HandleBlock(ctx context.Context, protoBlock *proto.Block) (*proto
 	if n.consensus.AmValidator {
 		protoPreVote := &proto.PreVote{
 			BlockID: blockID,
-			Sig:     n.PrivateKey.Sign(blockID).Bytes(),
-			PubKey:  n.PublicKey.Bytes(),
+			Sig:     n.keys.PrivateKey.Sign(blockID).Bytes(),
+			PubKey:  n.keys.PublicKey.Bytes(),
 		}
 		err = n.broadcastPreVote(protoPreVote)
 		if err != nil {
 			n.logger.Error("Error broadcasting preVote", zap.String("blockID", blockIDStr), zap.Error(err))
 		}
-		n.logger.Info("Broadcasted preVote", zap.String("blockID", blockIDStr))
+		n.logger.Info("Broadcast preVote", zap.String("blockID", blockIDStr))
 
-		err = n.consensus.CurrentRound.CurrentPhase.AddValidatorID(hex.EncodeToString(n.PublicKey.Bytes()))
+		err = n.consensus.CurrentRound.CurrentPhase.AddValidatorID(hex.EncodeToString(n.keys.PublicKey.Bytes()))
 		if err != nil {
 			n.logger.Error("Error adding validator", zap.String("blockID", blockIDStr), zap.Error(err))
 			return ack, nil
@@ -205,14 +198,14 @@ func (n *Node) validateBlock(block *blocks.Block, blockID []byte) bool {
 	}
 
 	// check that the block height is correct
-	chainLength := n.BlockList.Size()
+	chainLength := n.blockList.Size()
 	if int64(chainLength) != block.Header.Height {
 		n.logger.Error("Error validating block: block height incorrect", zap.String("blockID", blockIDStr), zap.Int("chainLength", chainLength), zap.Int64("blockHeight", block.Header.Height))
 		return false
 	}
 
 	// check that the block prev block hash is correct
-	prevBlockID, err := n.BlockList.Get(chainLength - 1)
+	prevBlockID, err := n.blockList.Get(chainLength - 1)
 	if !bytes.Equal(prevBlockID, block.Header.PrevHash) {
 		n.logger.Error("Error validating block: block contains incorrect previous block hash", zap.String("prevBlockID", hex.EncodeToString(prevBlockID)), zap.String("blockPrevBlockID", hex.EncodeToString(block.Header.PrevHash)))
 		return false
@@ -274,7 +267,7 @@ func (n *Node) validateBlock(block *blocks.Block, blockID []byte) bool {
 }
 
 func (n *Node) broadcastBlock(protoBlock *proto.Block) error {
-	for _, p := range n.PeerCache.Cache() {
+	for _, p := range n.cache.PeerCache.Cache() {
 		client := p.Client
 		_, err := client.HandleBlock(context.Background(), protoBlock)
 		if err != nil {
@@ -285,7 +278,7 @@ func (n *Node) broadcastBlock(protoBlock *proto.Block) error {
 }
 
 func (n *Node) broadcastPreVote(protoPreVote *proto.PreVote) error {
-	for _, p := range n.PeerCache.Cache() {
+	for _, p := range n.cache.PeerCache.Cache() {
 		client := p.Client
 		_, err := client.HandlePreVote(context.Background(), protoPreVote)
 		if err != nil {
@@ -296,7 +289,7 @@ func (n *Node) broadcastPreVote(protoPreVote *proto.PreVote) error {
 }
 
 func (n *Node) broadcastPreCommit(protoPreCommit *proto.PreCommit) error {
-	for _, p := range n.PeerCache.Cache() {
+	for _, p := range n.cache.PeerCache.Cache() {
 		client := p.Client
 		_, err := client.HandlePreCommit(context.Background(), protoPreCommit)
 		if err != nil {
@@ -306,7 +299,7 @@ func (n *Node) broadcastPreCommit(protoPreCommit *proto.PreCommit) error {
 	return nil
 }
 
-func (n *Node) HandlePreVote(ctx context.Context, protoPreVote *proto.PreVote) (*proto.Ack, error) {
+func (n *Node) HandlePreVote(_ context.Context, protoPreVote *proto.PreVote) (*proto.Ack, error) {
 	ack := &proto.Ack{}
 
 	// convert protoPreVote to preVote
@@ -397,14 +390,14 @@ func (n *Node) HandlePreVote(ctx context.Context, protoPreVote *proto.PreVote) (
 	if n.consensus.AmValidator {
 		preCommit := &proto.PreCommit{
 			BlockID: n.consensus.CurrentRound.BlockID,
-			Sig:     n.PrivateKey.Sign(n.consensus.CurrentRound.BlockID).Bytes(),
-			PubKey:  n.PublicKey.Bytes(),
+			Sig:     n.keys.PrivateKey.Sign(n.consensus.CurrentRound.BlockID).Bytes(),
+			PubKey:  n.keys.PublicKey.Bytes(),
 		}
 		err = n.broadcastPreCommit(preCommit)
 		if err != nil {
 			n.logger.Error("Error broadcasting own preCommit", zap.Error(err))
 		}
-		err = n.consensus.CurrentRound.CurrentPhase.AddValidatorID(hex.EncodeToString(n.PublicKey.Bytes()))
+		err = n.consensus.CurrentRound.CurrentPhase.AddValidatorID(hex.EncodeToString(n.keys.PublicKey.Bytes()))
 		if err != nil {
 			n.logger.Error("Error adding validator", zap.Error(err))
 			return ack, nil
@@ -418,7 +411,7 @@ func (n *Node) HandlePreVote(ctx context.Context, protoPreVote *proto.PreVote) (
 	return ack, nil
 }
 
-func (n *Node) HandlePreCommit(ctx context.Context, protoPreCommit *proto.PreCommit) (*proto.Ack, error) {
+func (n *Node) HandlePreCommit(_ context.Context, protoPreCommit *proto.PreCommit) (*proto.Ack, error) {
 	ack := &proto.Ack{}
 
 	// convert protoPreCommit to preCommit
@@ -527,7 +520,7 @@ func (n *Node) commitBlock() bool {
 	blockIDStr := hex.EncodeToString(blockID)
 
 	// add block to block store
-	err := n.BlockStore.Put(blockID, block)
+	err := n.store.BlockStore.Put(blockID, block)
 	if err != nil {
 		n.logger.Error("Error committing block: unable to add block to block store", zap.String("blockID", blockIDStr), zap.Error(err))
 		return false
@@ -536,7 +529,7 @@ func (n *Node) commitBlock() bool {
 	n.logger.Info("Successfully added block to block store, adding block to block list ...", zap.String("blockID", blockIDStr))
 
 	// add block to block list
-	n.BlockList.Add(blockID)
+	n.blockList.Add(blockID)
 
 	n.logger.Info("Successfully added block to block list, committing transactions ...", zap.String("blockID", blockIDStr))
 
@@ -584,7 +577,7 @@ func (n *Node) commitTransactions(txs []*transactions.Transaction) bool {
 		}
 
 		// add transaction to transaction store
-		err = n.TransactionStore.Put(txID, tx)
+		err = n.store.TransactionStore.Put(txID, tx)
 		if err != nil {
 			n.logger.Error("Error committing transactions: unable to add transaction to transaction store, walking back commit transactions ...", zap.Int("txIndex", i), zap.Error(err))
 			ok := n.walkBackCommitTransactions(committedTXs, consumedUTXOs, producedUTXOs)
@@ -600,7 +593,7 @@ func (n *Node) commitTransactions(txs []*transactions.Transaction) bool {
 		for _, input := range tx.Inputs {
 			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
 			utxoIDStr := hex.EncodeToString(utxoID)
-			utxo, err := n.UtxoStore.Delete(utxoID)
+			utxo, err := n.store.UtxoStore.Delete(utxoID)
 			if err != nil {
 				n.logger.Error("Error committing transactions: unable to remove consumed utxo from utxo store, walking back commit transactions ...", zap.Int("txIndex", i), zap.Error(err))
 				ok := n.walkBackCommitTransactions(committedTXs, consumedUTXOs, producedUTXOs)
@@ -617,7 +610,7 @@ func (n *Node) commitTransactions(txs []*transactions.Transaction) bool {
 		for i, output := range tx.Outputs {
 			utxoID := utxos.CreateUTXOID(txID, int64(i))
 			utxo := utxos.NewUTXO(output.Amount, output.LockingScript)
-			err = n.UtxoStore.Put(utxoID, utxo)
+			err = n.store.UtxoStore.Put(utxoID, utxo)
 			if err != nil {
 				n.logger.Error("Error committing transactions: unable to add produced utxo to utxo store, walking back commit transactions ...", zap.Int("txIndex", i), zap.Error(err))
 				ok := n.walkBackCommitTransactions(committedTXs, consumedUTXOs, producedUTXOs)
@@ -638,7 +631,7 @@ func (n *Node) walkBackCommitBlock(blockID []byte, store bool, list bool) bool {
 
 	// remove committed block from block store
 	if store {
-		err := n.BlockStore.Delete(blockID)
+		err := n.store.BlockStore.Delete(blockID)
 		if err != nil {
 			n.logger.Error("Error walking back block commit: unable to remove block from block store", zap.String("blockID", blockIDStr), zap.Error(err))
 			return false
@@ -647,7 +640,7 @@ func (n *Node) walkBackCommitBlock(blockID []byte, store bool, list bool) bool {
 
 	// remove committed block from block list
 	if list {
-		err := n.BlockList.Delete(blockID)
+		err := n.blockList.Delete(blockID)
 		if err != nil {
 			n.logger.Error("Error walking back block commit: unable to remove block block list", zap.String("blockID", blockIDStr), zap.Error(err))
 			return false
@@ -659,7 +652,7 @@ func (n *Node) walkBackCommitBlock(blockID []byte, store bool, list bool) bool {
 func (n *Node) walkBackCommitTransactions(committedTXs [][]byte, consumedUTXOs map[string]*utxos.UTXO, producedUTXOs [][]byte) bool {
 	// remove committed transactions from transaction store
 	for i, txID := range committedTXs {
-		err := n.TransactionStore.Delete(txID)
+		err := n.store.TransactionStore.Delete(txID)
 		if err != nil {
 			n.logger.Error("Error walking back commit transactions: unable to remove transaction from transaction store", zap.Int("txIndex", i), zap.Error(err))
 			return false
@@ -673,7 +666,7 @@ func (n *Node) walkBackCommitTransactions(committedTXs [][]byte, consumedUTXOs m
 			n.logger.Error("Error walking back commit transactions: unable to decode utxoIDStr", zap.String("utxoID", utxoIDStr))
 			return false
 		}
-		err = n.UtxoStore.Put(utxoID, utxo)
+		err = n.store.UtxoStore.Put(utxoID, utxo)
 		if err != nil {
 			n.logger.Error("Error walking back commit transactions: unable to add consumed utxo back to utxo store", zap.String("utxoID", utxoIDStr), zap.Error(err))
 			return false
@@ -683,7 +676,7 @@ func (n *Node) walkBackCommitTransactions(committedTXs [][]byte, consumedUTXOs m
 	// remove produced utxos from utxo store
 	for _, utxoID := range producedUTXOs {
 		utxoIDStr := hex.EncodeToString(utxoID)
-		_, err := n.UtxoStore.Delete(utxoID)
+		_, err := n.store.UtxoStore.Delete(utxoID)
 		if err != nil {
 			n.logger.Error("Error walking back commit transactions: unable to remove produced utxo from utxo store", zap.String("utxoID", utxoIDStr), zap.Error(err))
 			return false
@@ -703,35 +696,35 @@ func (n *Node) cleanMempool() bool {
 		txIDStr := hex.EncodeToString(txID)
 
 		// remove committed transaction from mempool
-		if n.Mempool.HasTransaction(txIDStr) {
-			n.Mempool.DeleteTransaction(txIDStr)
+		if n.mempool.HasTransaction(txIDStr) {
+			n.mempool.DeleteTransaction(txIDStr)
 		}
 		// remove consumed utxos from mempool
 		for _, input := range tx.Inputs {
 			utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
 			utxoIDStr := hex.EncodeToString(utxoID)
-			if n.Mempool.HasUTXO(utxoIDStr) {
-				n.Mempool.DeleteUTXO(utxoIDStr)
+			if n.mempool.HasUTXO(utxoIDStr) {
+				n.mempool.DeleteUTXO(utxoIDStr)
 			}
 		}
 	}
 	// remove now invalid transactions from mempool
-	n.Mempool.Cleanse()
+	n.mempool.Cleanse()
 	return true
 }
 
-func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction) (*proto.Ack, error) {
+func (n *Node) HandleTransaction(_ context.Context, protoTx *proto.Transaction) (*proto.Ack, error) {
 	tx := transactions.ConvertProtoTransaction(protoTx)
 	txID, _ := tx.Hash()
 	txIDStr := hex.EncodeToString(txID)
 	ack := &proto.Ack{}
 
 	// check if already seen this transaction
-	ok := n.TransactionCache.Has(txIDStr)
+	ok := n.cache.TransactionCache.Has(txIDStr)
 	if ok {
 		return ack, nil
 	}
-	n.TransactionCache.Put(txIDStr, true)
+	n.cache.TransactionCache.Put(txIDStr, true)
 
 	n.logger.Info("Received new transaction, validating transaction ...", zap.String("txID", txIDStr))
 
@@ -744,15 +737,15 @@ func (n *Node) HandleTransaction(ctx context.Context, protoTx *proto.Transaction
 	n.logger.Info("Successfully validated transaction, adding to mempool", zap.String("txID", txIDStr))
 
 	// add valid transaction to mempool
-	n.Mempool.PutTransaction(txIDStr, tx)
+	n.mempool.PutTransaction(txIDStr, tx)
 
-	n.logger.Info("Successfully added transaction to mempool, marking ref utxos as claimed", zap.String("txID", txIDStr), zap.Int("mempool size", n.Mempool.TransactionsSize()))
+	n.logger.Info("Successfully added transaction to mempool, marking ref utxos as claimed", zap.String("txID", txIDStr), zap.Int("mempool size", n.mempool.TransactionsSize()))
 
 	// mark all referenced utxos as mempool claimed
 	for _, input := range tx.Inputs {
 		utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
 		utxoIDStr := hex.EncodeToString(utxoID)
-		n.Mempool.PutUTXO(utxoIDStr, true)
+		n.mempool.PutUTXO(utxoIDStr, true)
 	}
 
 	n.logger.Info("Successfully marked ref utxos, broadcasting transaction", zap.String("txID", txIDStr))
@@ -811,7 +804,7 @@ func (n *Node) validateTransactionInputs(inputs []*transactions.Input, txID []by
 		}
 
 		// checks that the referenced utxo exists/is not spent
-		utxo, err := n.UtxoStore.Get(utxoID)
+		utxo, err := n.store.UtxoStore.Get(utxoID)
 		if err != nil {
 			n.logger.Error("Error validating transaction: transaction contains input referencing nonexistent utxo",
 				zap.Error(err),
@@ -823,7 +816,7 @@ func (n *Node) validateTransactionInputs(inputs []*transactions.Input, txID []by
 
 		// checks that the referenced utxo is not claimed by other transaction already in mempool
 		if checkMempool {
-			if n.Mempool.HasUTXO(utxoIDStr) {
+			if n.mempool.HasUTXO(utxoIDStr) {
 				n.logger.Error("Error validating transaction: transaction contains mempool claimed utxo",
 					zap.String("txID", txIDStr),
 					zap.Int("inputIndex", i),
@@ -854,7 +847,7 @@ func (n *Node) validateTransactionOutputs(inputs []*transactions.Input, outputs 
 	var totalAmount int64
 	for _, input := range inputs {
 		utxoID := utxos.CreateUTXOID(input.TxID, input.UTXOIndex)
-		utxo, _ := n.UtxoStore.Get(utxoID)
+		utxo, _ := n.store.UtxoStore.Get(utxoID)
 		totalAmount += utxo.Amount
 	}
 
@@ -879,7 +872,7 @@ func (n *Node) validateTransactionOutputs(inputs []*transactions.Input, outputs 
 }
 
 func (n *Node) broadcastTransaction(protoTx *proto.Transaction) error {
-	for _, p := range n.PeerCache.Cache() {
+	for _, p := range n.cache.PeerCache.Cache() {
 		client := p.Client
 		_, err := client.HandleTransaction(context.Background(), protoTx)
 		if err != nil {
@@ -889,77 +882,72 @@ func (n *Node) broadcastTransaction(protoTx *proto.Transaction) error {
 	return nil
 }
 
-func (n *Node) HandleHandshake(ctx context.Context, peerMsg *proto.Handshake) (*proto.Handshake, error) {
-	peerAddr := peerMsg.ListenAddr
-	msg := &proto.Handshake{
-		ListenAddr:      n.ListenAddr,
-		PeerListenAddrs: n.PeerCache.GetPeerAddrs(),
-		Height:          n.Height,
+// HandleHandshake handles handshake message from remote peer
+func (n *Node) HandleHandshake(_ context.Context, peerHandshake *proto.Handshake) (*proto.Handshake, error) {
+	handshake := &proto.Handshake{
+		ListenAddr:      n.listenAddr,
+		PeerListenAddrs: n.cache.PeerCache.GetPeerAddrs(),
 	}
 
-	// checks that we do not already know this peers
-	seen := n.PeerCache.Has(peerAddr)
-	if seen {
-		return msg, nil
+	// checks that we do not already know this peer
+	ok := n.cache.PeerCache.Has(peerHandshake.ListenAddr)
+	if ok {
+		return handshake, nil
 	}
 
 	// checks own handshake message has not been forwarded back to us
-	if peerAddr == n.ListenAddr {
-		return msg, nil
+	if peerHandshake.ListenAddr == n.listenAddr {
+		return handshake, nil
 	}
 
-	n.logger.Info("Received new handshake, dialing peers", zap.String("peers", peerAddr))
+	n.logger.Info("Received new handshake, dialing new peer", zap.String("peer", peerHandshake.ListenAddr))
 
 	// dial peers
-	client, err := n.dialPeer(peerAddr)
+	client, err := n.dialPeer(peerHandshake.ListenAddr)
 	if err != nil {
-		n.logger.Error("Error dialing peers", zap.Error(err), zap.String("peers", peerAddr))
-		return msg, nil
+		n.logger.Error("Error dialing peer", zap.String("peers", peerHandshake.ListenAddr), zap.Error(err))
+		return handshake, nil
 	}
 
-	n.logger.Info("Successfully dialed peers, adding peers", zap.String("peers", peerAddr))
+	n.logger.Info("Successfully dialed peer, adding new peer, starting peer discovery", zap.String("peer", peerHandshake.ListenAddr))
 
 	// add peers
-	p := peers.NewPeer(peerMsg.Height, client)
-	n.Cache.PeerCache.Put(peerAddr, p)
+	p := peers.NewPeer(client)
+	n.cache.PeerCache.Put(peerHandshake.ListenAddr, p)
 
-	n.logger.Info("Successfully added peers, starting peers discovery go routine", zap.String("peers", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
-
-	// start peers discovery go routine
-	go func() {
-		err := n.peerDiscovery(peerMsg.PeerListenAddrs)
-		if err != nil {
-			n.logger.Error("Error in peers discover", zap.Error(err), zap.String("peers", peerAddr), zap.Strings("peers", peerMsg.PeerListenAddrs))
-		}
-	}()
+	// peer discovery
+	err = n.peerDiscovery(peerHandshake.PeerListenAddrs)
+	if err != nil {
+		n.logger.Error("Error in peer discovery", zap.Strings("peers", peerHandshake.PeerListenAddrs), zap.Error(err))
+	}
 
 	// update list of peers
-	msg.PeerListenAddrs = n.PeerCache.GetPeerAddrs()
-	return msg, nil
+	handshake.PeerListenAddrs = n.cache.PeerCache.GetPeerAddrs()
+	return handshake, nil
 }
 
+// peerDiscovery dials each of the given peers and invokes their handshake method
 func (n *Node) peerDiscovery(peerAddrs []string) error {
 	for _, peerAddr := range peerAddrs {
-		seen := n.PeerCache.Has(peerAddr)
 		// checks we do not already know this peers
-		if seen {
+		ok := n.cache.PeerCache.Has(peerAddr)
+		if ok {
 			continue
 		}
 		// checks peers addr is not our addr
-		if peerAddr == n.ListenAddr {
+		if peerAddr == n.listenAddr {
 			continue
 		}
 
-		// dial peers
+		// dial peer
 		client, err := n.dialPeer(peerAddr)
 		if err != nil {
 			return err
 		}
 
 		msg := &proto.Handshake{
-			ListenAddr:      n.ListenAddr,
-			PeerListenAddrs: n.PeerCache.GetPeerAddrs(),
-			Height:          n.Height,
+			ListenAddr:      n.listenAddr,
+			PeerListenAddrs: n.cache.PeerCache.GetPeerAddrs(),
 		}
 
 		// invoke peers handshake method
@@ -968,11 +956,12 @@ func (n *Node) peerDiscovery(peerAddrs []string) error {
 			continue
 		}
 
-		// add new peers
-		n.logger.Info("Adding peers", zap.String("peers", peerAddr))
-		p := peers.NewPeer(peerMsg.Height, client)
-		n.Cache.PeerCache.Put(peerAddr, p)
+		// add new peer
+		n.logger.Info("Adding new peer", zap.String("peer", peerAddr))
+		p := peers.NewPeer(client)
+		n.cache.PeerCache.Put(peerAddr, p)
 
+		// peer discovery
 		err = n.peerDiscovery(peerMsg.PeerListenAddrs)
 		if err != nil {
 			return err
@@ -981,6 +970,7 @@ func (n *Node) peerDiscovery(peerAddrs []string) error {
 	return nil
 }
 
+// dialPeer dials the gRPC server of the peer node listening at the given address
 func (n *Node) dialPeer(peerAddr string) (proto.NodeClient, error) {
 	conn, err := grpc.NewClient(peerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -990,48 +980,62 @@ func (n *Node) dialPeer(peerAddr string) (proto.NodeClient, error) {
 	return client, nil
 }
 
-func (n *Node) DumpBlockStore(ctx context.Context, protoEmpty *emptypb.Empty) (*proto.Dump, error) {
-	size, blockIDs, err := n.BlockStore.Dump()
+// DumpPeers returns the address of each known peer
+func (n *Node) DumpPeers(_ context.Context, _ *emptypb.Empty) (*proto.StringDump, error) {
+	peerAddrs := n.cache.PeerCache.GetPeerAddrs()
+	protoStringDump := &proto.StringDump{
+		Size: int64(len(peerAddrs)),
+		Ids:  peerAddrs,
+	}
+	return protoStringDump, nil
+}
+
+// DumpBlockStore returns the number of blocks committed to the blockchain and the id of each block committed to the blockchain
+func (n *Node) DumpBlockStore(_ context.Context, _ *emptypb.Empty) (*proto.BytesDump, error) {
+	size, blockIDs, err := n.store.BlockStore.Dump()
 	if err != nil {
 		return nil, fmt.Errorf("error dumping block store: %w", err)
 	}
-	protoDump := &proto.Dump{
+	protoDump := &proto.BytesDump{
 		Size: int64(size),
 		Ids:  blockIDs,
 	}
 	return protoDump, nil
 }
 
-func (n *Node) DumpBlockList(ctx context.Context, protoEmpty *emptypb.Empty) (*proto.Dump, error) {
-	size, blockIDs, err := n.BlockList.Dump()
+// DumpBlockList returns the number of blocks committed to the blockchain and the id of each block committed to the blockchain
+func (n *Node) DumpBlockList(_ context.Context, _ *emptypb.Empty) (*proto.BytesDump, error) {
+	size, blockIDs, err := n.blockList.Dump()
 	if err != nil {
 		return nil, fmt.Errorf("error dumping block list: %w", err)
 	}
-	protoDump := &proto.Dump{
+	protoDump := &proto.BytesDump{
 		Size: int64(size),
 		Ids:  blockIDs,
 	}
 	return protoDump, nil
 }
 
-func (n *Node) DumpTransactionStore(ctx context.Context, protoEmpty *emptypb.Empty) (*proto.Dump, error) {
-	size, transactionIDs, err := n.TransactionStore.Dump()
+// DumpTransactionStore returns the number of transactions committed to the blockchain and the id of each transaction committed to the blockchain
+func (n *Node) DumpTransactionStore(_ context.Context, _ *emptypb.Empty) (*proto.BytesDump, error) {
+	size, transactionIDs, err := n.store.TransactionStore.Dump()
 	if err != nil {
 		return nil, fmt.Errorf("error dumping transaction store: %w", err)
 	}
-	protoDump := &proto.Dump{
+	protoDump := &proto.BytesDump{
 		Size: int64(size),
 		Ids:  transactionIDs,
 	}
 	return protoDump, nil
 }
 
-func (n *Node) DumpUTXOSet(ctx context.Context, protoEmpty *emptypb.Empty) (*proto.Dump, error) {
-	size, utxoIDs, err := n.UtxoStore.Dump()
+// DumpUTXOSet returns the number of utxos in the utxo set and the id of each utxo in the utxo set
+func (n *Node) DumpUTXOSet(_ context.Context, _ *emptypb.Empty) (*proto.BytesDump, error) {
+	size, utxoIDs, err := n.store.UtxoStore.Dump()
 	if err != nil {
 		return nil, fmt.Errorf("error dumping utxo set: %w", err)
 	}
-	protoDump := &proto.Dump{
+	protoDump := &proto.BytesDump{
 		Size: int64(size),
 		Ids:  utxoIDs,
 	}

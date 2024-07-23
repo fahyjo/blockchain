@@ -25,6 +25,7 @@ const (
 	Node_HandleBlock_FullMethodName          = "/Node/HandleBlock"
 	Node_HandlePreVote_FullMethodName        = "/Node/HandlePreVote"
 	Node_HandlePreCommit_FullMethodName      = "/Node/HandlePreCommit"
+	Node_DumpPeers_FullMethodName            = "/Node/DumpPeers"
 	Node_DumpBlockStore_FullMethodName       = "/Node/DumpBlockStore"
 	Node_DumpBlockList_FullMethodName        = "/Node/DumpBlockList"
 	Node_DumpTransactionStore_FullMethodName = "/Node/DumpTransactionStore"
@@ -40,10 +41,11 @@ type NodeClient interface {
 	HandleBlock(ctx context.Context, in *Block, opts ...grpc.CallOption) (*Ack, error)
 	HandlePreVote(ctx context.Context, in *PreVote, opts ...grpc.CallOption) (*Ack, error)
 	HandlePreCommit(ctx context.Context, in *PreCommit, opts ...grpc.CallOption) (*Ack, error)
-	DumpBlockStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error)
-	DumpBlockList(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error)
-	DumpTransactionStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error)
-	DumpUTXOSet(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error)
+	DumpPeers(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StringDump, error)
+	DumpBlockStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*BytesDump, error)
+	DumpBlockList(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*BytesDump, error)
+	DumpTransactionStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*BytesDump, error)
+	DumpUTXOSet(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*BytesDump, error)
 }
 
 type nodeClient struct {
@@ -104,9 +106,19 @@ func (c *nodeClient) HandlePreCommit(ctx context.Context, in *PreCommit, opts ..
 	return out, nil
 }
 
-func (c *nodeClient) DumpBlockStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error) {
+func (c *nodeClient) DumpPeers(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StringDump, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Dump)
+	out := new(StringDump)
+	err := c.cc.Invoke(ctx, Node_DumpPeers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeClient) DumpBlockStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*BytesDump, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BytesDump)
 	err := c.cc.Invoke(ctx, Node_DumpBlockStore_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -114,9 +126,9 @@ func (c *nodeClient) DumpBlockStore(ctx context.Context, in *empty.Empty, opts .
 	return out, nil
 }
 
-func (c *nodeClient) DumpBlockList(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error) {
+func (c *nodeClient) DumpBlockList(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*BytesDump, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Dump)
+	out := new(BytesDump)
 	err := c.cc.Invoke(ctx, Node_DumpBlockList_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -124,9 +136,9 @@ func (c *nodeClient) DumpBlockList(ctx context.Context, in *empty.Empty, opts ..
 	return out, nil
 }
 
-func (c *nodeClient) DumpTransactionStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error) {
+func (c *nodeClient) DumpTransactionStore(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*BytesDump, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Dump)
+	out := new(BytesDump)
 	err := c.cc.Invoke(ctx, Node_DumpTransactionStore_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -134,9 +146,9 @@ func (c *nodeClient) DumpTransactionStore(ctx context.Context, in *empty.Empty, 
 	return out, nil
 }
 
-func (c *nodeClient) DumpUTXOSet(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Dump, error) {
+func (c *nodeClient) DumpUTXOSet(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*BytesDump, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Dump)
+	out := new(BytesDump)
 	err := c.cc.Invoke(ctx, Node_DumpUTXOSet_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -153,10 +165,11 @@ type NodeServer interface {
 	HandleBlock(context.Context, *Block) (*Ack, error)
 	HandlePreVote(context.Context, *PreVote) (*Ack, error)
 	HandlePreCommit(context.Context, *PreCommit) (*Ack, error)
-	DumpBlockStore(context.Context, *empty.Empty) (*Dump, error)
-	DumpBlockList(context.Context, *empty.Empty) (*Dump, error)
-	DumpTransactionStore(context.Context, *empty.Empty) (*Dump, error)
-	DumpUTXOSet(context.Context, *empty.Empty) (*Dump, error)
+	DumpPeers(context.Context, *empty.Empty) (*StringDump, error)
+	DumpBlockStore(context.Context, *empty.Empty) (*BytesDump, error)
+	DumpBlockList(context.Context, *empty.Empty) (*BytesDump, error)
+	DumpTransactionStore(context.Context, *empty.Empty) (*BytesDump, error)
+	DumpUTXOSet(context.Context, *empty.Empty) (*BytesDump, error)
 	mustEmbedUnimplementedNodeServer()
 }
 
@@ -179,16 +192,19 @@ func (UnimplementedNodeServer) HandlePreVote(context.Context, *PreVote) (*Ack, e
 func (UnimplementedNodeServer) HandlePreCommit(context.Context, *PreCommit) (*Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HandlePreCommit not implemented")
 }
-func (UnimplementedNodeServer) DumpBlockStore(context.Context, *empty.Empty) (*Dump, error) {
+func (UnimplementedNodeServer) DumpPeers(context.Context, *empty.Empty) (*StringDump, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DumpPeers not implemented")
+}
+func (UnimplementedNodeServer) DumpBlockStore(context.Context, *empty.Empty) (*BytesDump, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DumpBlockStore not implemented")
 }
-func (UnimplementedNodeServer) DumpBlockList(context.Context, *empty.Empty) (*Dump, error) {
+func (UnimplementedNodeServer) DumpBlockList(context.Context, *empty.Empty) (*BytesDump, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DumpBlockList not implemented")
 }
-func (UnimplementedNodeServer) DumpTransactionStore(context.Context, *empty.Empty) (*Dump, error) {
+func (UnimplementedNodeServer) DumpTransactionStore(context.Context, *empty.Empty) (*BytesDump, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DumpTransactionStore not implemented")
 }
-func (UnimplementedNodeServer) DumpUTXOSet(context.Context, *empty.Empty) (*Dump, error) {
+func (UnimplementedNodeServer) DumpUTXOSet(context.Context, *empty.Empty) (*BytesDump, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DumpUTXOSet not implemented")
 }
 func (UnimplementedNodeServer) mustEmbedUnimplementedNodeServer() {}
@@ -294,6 +310,24 @@ func _Node_HandlePreCommit_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Node_DumpPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).DumpPeers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_DumpPeers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).DumpPeers(ctx, req.(*empty.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Node_DumpBlockStore_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(empty.Empty)
 	if err := dec(in); err != nil {
@@ -392,6 +426,10 @@ var Node_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HandlePreCommit",
 			Handler:    _Node_HandlePreCommit_Handler,
+		},
+		{
+			MethodName: "DumpPeers",
+			Handler:    _Node_DumpPeers_Handler,
 		},
 		{
 			MethodName: "DumpBlockStore",

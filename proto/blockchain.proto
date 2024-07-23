@@ -10,13 +10,18 @@ service Node {
   rpc HandleBlock(Block) returns (Ack);
   rpc HandlePreVote(PreVote) returns (Ack);
   rpc HandlePreCommit(PreCommit) returns (Ack);
-  rpc DumpBlockStore(google.protobuf.Empty) returns (Dump);
-  rpc DumpBlockList(google.protobuf.Empty) returns (Dump);
-  rpc DumpTransactionStore(google.protobuf.Empty) returns (Dump);
-  rpc DumpUTXOSet(google.protobuf.Empty) returns (Dump);
+  rpc DumpPeers(google.protobuf.Empty) returns (StringDump);
+  rpc DumpBlockStore(google.protobuf.Empty) returns (BytesDump);
+  rpc DumpBlockList(google.protobuf.Empty) returns (BytesDump);
+  rpc DumpTransactionStore(google.protobuf.Empty) returns (BytesDump);
+  rpc DumpUTXOSet(google.protobuf.Empty) returns (BytesDump);
 }
 
-message Dump {
+message StringDump {
+  int64 size = 1;
+  repeated string ids = 2;
+}
+message BytesDump {
   int64 size = 1;
   repeated bytes ids = 2;
 }
@@ -24,7 +29,6 @@ message Dump {
 message Handshake {
   string listenAddr = 1;
   repeated string peerListenAddrs = 2;
-  int64 height = 3;
 }
 
 message Ack {
