@@ -209,7 +209,3 @@ The implementation supports two storage backends for blockchain data persistence
 - Light client implementation
 - Smart contract support
 - Sharding for scalability
-
-## License
-
-This project is a work in progress.
